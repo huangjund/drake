@@ -1,6 +1,6 @@
 # Drake
 
-Model-Based Design and Verification for Robotics.
+## This is a branch for kneedcompassgait  
 
-Please see the [Drake Documentation](https://drake.mit.edu) for more
-information.
+More informations, please see LIDAR:  
+[Gatech Prof. Zhao's Webpage](https://sites.google.com/site/yezhaout/research)
