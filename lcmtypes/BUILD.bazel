@@ -41,6 +41,14 @@ drake_lcm_cc_library(
         "lcmt_acrobot_y.lcm",
     ],
 )
+drake_lcm_cc_library(
+    name = "kneed_compass_gait",
+    lcm_package = "drake",
+    lcm_srcs = [
+        "lcmt_KCG_u.lcm",
+        "lcmt_KCG_x.lcm",
+    ],
+)
 
 drake_lcm_cc_library(
     name = "body_acceleration",
@@ -322,6 +330,7 @@ drake_lcm_java_library(
 
 # This should list every LCM type that is known to Drake.
 LCMTYPES_CC = [
+	":kneed_compass_gait",
     ":acrobot",
     ":automotive",
     ":body_acceleration",

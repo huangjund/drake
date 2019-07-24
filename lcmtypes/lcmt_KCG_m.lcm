@@ -1,0 +1,14 @@
+package drake;
+
+struct lcmt_KCG_m
+{
+	int64_t timestamp;
+
+	double stance_fai;       // measured position
+	double swing_fai;
+	double hip_fai;
+	double thigh_fai;
+	double hip_tau;         // measured actual torque
+	double leftknee_tau;
+	double rightknee_tau;
+}

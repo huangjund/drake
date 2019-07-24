@@ -1,0 +1,10 @@
+package drake;
+
+struct lcmt_KCG_u
+{
+	int64_t timestamp;
+
+	double hip_tau;     // Newton-meters
+	double leftknee_tau;
+	double rightknee_tau;
+}
