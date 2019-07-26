@@ -61,7 +61,7 @@ int do_main() {
   AcrobotState<double>* x0 = dynamic_cast<AcrobotState<double>*>(
       &acrobot_context.get_mutable_continuous_state_vector());
   DRAKE_DEMAND(x0 != nullptr);
-  x0->set_theta1(M_PI + 0.1);
+  x0->set_theta1(M_PI+0.1);
   x0->set_theta2(-.1);
   x0->set_theta1dot(0.0);
   x0->set_theta2dot(0.0);

@@ -38,16 +38,14 @@ int DoMain() {
 //  TODO(Junda): this part is doKinematics, but have problem
 //  to call for doKinematics, because of the shard.
     drake::WrenchVector<double> external_wrench;
-    Eigen::Matrix<double, 9, 1> q_in, qd_in;
+    Eigen::VectorXd q_in(9), qd_in(9);
     q_in << 1, 2, 3, 4, 5, 6, 7, 8, 9;
     qd_in << 1, 2, 3, 4, 5, 6, 7, 8, 9;
-    q_in[2] = 1;
-    cout << "q_in \n" << q_in << endl;
-
+    auto kinematics = tree->doKinematics(q_in, qd_in);
 //    auto kinematics = tree->doKinematics(q_in, qd_in, true);
-    auto kinematics = tree->CreateKinematicsCache();
-    kinematics.initialize(q_in, qd_in);
-    tree->doKinematics(kinematics, true);
+//    auto kinematics = tree->CreateKinematicsCache();
+//    kinematics.initialize(q_in, qd_in);
+
 //
 //    cout << kinematics.getQ() << endl;
 //    cout << tree->transformQDotToVelocity(

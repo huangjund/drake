@@ -10,7 +10,7 @@ namespace KneedCompassGait {
 
 template <typename T>
 KneedCompassGait<T>::KneedCompassGait(
-        RigidBodyTree<T> *tree) : systems::LeafSystem<T>(
+        RigidBodyTree<double> *tree) : systems::LeafSystem<T>(
         systems::SystemTypeTag<
                 examples::KneedCompassGait::KneedCompassGait>{}) {
     // Four Continuous State
@@ -339,18 +339,19 @@ void KneedCompassGait<T>::DoCalcTimeDerivatives(
     // get generalized coordination
     Vector<T, 18> state = this->get_output_port(1).Eval(context);
     int num = 18;
-    Eigen::Matrix<T, 9, 1> nq, nv;
+    Vector<T, 9> nq, nv;
     for (int i = 0; i < num; ++i) {
         nq[i] = state[i];
         nv[i] = state[i+num];
     }
 
     // get Kinematic cache and initialize it
-//    KinematicsCache<T> kinsol = rigidtree->CreateKinematicsCache();
-//    kinsol.initialize(nq, nv);
-//    kinsol = rigidtree->doKinematics(nq, nv, true);
-    std::cout << "1.ok" << std::endl;
+//    auto kinsol = rigidtree->doKinematics(nq, nv, true);
     auto kinsol = rigidtree->CreateKinematicsCache();
+    kinsol.initialize(nq, nv);
+    rigidtree->doKinematics(kinsol, true);
+//    std::cout << "1.ok" << std::endl;
+//    auto kinsol = rigidtree->CreateKinematicsCache();
 //    rigidtree->doKinematics(kinsol);
 //
 //    Eigen::Matrix<T, 9, 9> H = rigidtree->massMatrix(kinsol);

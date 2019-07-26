@@ -40,7 +40,7 @@ class KneedCompassGait final : public systems::LeafSystem<T>{
     DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(KneedCompassGait);
 
     /// Constructs the plant.
-    explicit KneedCompassGait(RigidBodyTree<T> *tree);
+    explicit KneedCompassGait(RigidBodyTree<double> *tree);
 
     /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
     template <typename U>
@@ -108,8 +108,8 @@ class KneedCompassGait final : public systems::LeafSystem<T>{
     /// - bias is a 4x1 vector that includes the Coriolis term and gravity term,
     ///   i.e. bias = C(q,v)*v - τ_g(q).
 
-    RigidBodyTree<T>* rigidtree;
-    Vector4<T> DynamicsBiasTerm(const systems::Context<T> &context) const;
+    RigidBodyTree<double>* rigidtree;
+    Vector4 <T> DynamicsBiasTerm(const systems::Context<T> &context) const;
     // MassMatrix had had parameter: const systems::Context<T> &context
 //    Matrix4<T> MassMatrix(void) const;
 
