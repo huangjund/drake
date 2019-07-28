@@ -38,7 +38,6 @@ int DoMain() {
 
     auto kneed_compass_gait = builder.AddSystem<KneedCompassGait>(tree);
     kneed_compass_gait->set_name("kneed_compass_gait");
-
             // add floating roll-pitch-yaw joints to unattached links
             // to all unattached links
 
@@ -74,7 +73,7 @@ int DoMain() {
     systems::Context<double>& rw_context = diagram->GetMutableSubsystemContext(
             *kneed_compass_gait, &simulator.get_mutable_context());
     KneedcompassgaitContinuousstate<double>& state =
-            KneedCompassGait<double>::get_mutable_continuous_state(&rw_context);
+            KneedCompassGait::get_mutable_continuous_state(&rw_context);
 
     state.set_angle_stance_knee(2.0);
     state.set_angle_swing_knee(0.0);
@@ -87,6 +86,7 @@ int DoMain() {
 
     simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
     simulator.get_mutable_context().SetAccuracy(1e-4);
+   // std::cout << "ok" << std::endl;
     simulator.AdvanceTo(10);
     return 0;
 }

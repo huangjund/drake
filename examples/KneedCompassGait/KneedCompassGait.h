@@ -34,8 +34,8 @@ namespace KneedCompassGait {
 ///
 // TODO(Junda): class CAN be inherited
 
-template <typename T>
-class KneedCompassGait final : public systems::LeafSystem<T>{
+
+class KneedCompassGait final : public systems::LeafSystem<double >{
  public:
     DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(KneedCompassGait);
 
@@ -43,56 +43,55 @@ class KneedCompassGait final : public systems::LeafSystem<T>{
     explicit KneedCompassGait(RigidBodyTree<double> *tree);
 
     /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
-    template <typename U>
-    explicit KneedCompassGait(
-            const KneedCompassGait<U>&) : KneedCompassGait<T>(nullptr) {}
 
-    const systems::OutputPort<T>& get_minimal_state_output_port() const {
+//    explicit KneedCompassGait(const KneedCompassGait&) : KneedCompassGait(nullptr) {}
+
+    const systems::OutputPort<double>& get_minimal_state_output_port() const {
         return this->get_output_port(0);  // 8 output from state named vector
     }
 
     /// Returns reference to the output port that provides the state required by
     /// a RigidBodyTree loaded from CompassGait.urdf (as instantiated with
     /// FloatingBaseType::kRollPitchYaw).
-    const systems::OutputPort<T>& get_floating_base_state_output_port() const {
+    const systems::OutputPort<double>& get_floating_base_state_output_port() const {
         return this->get_output_port(1);  // 18 outputs of dofs
     }
 
     /// Returns the KneedCompassGaitContinuousState.
-    static const KneedcompassgaitContinuousstate<T>& get_continuous_state(
-            const systems::Context<T>& context) {
+    static const KneedcompassgaitContinuousstate<double>& get_continuous_state(
+            const systems::Context<double>& context) {
         return get_continuous_state(context.get_continuous_state());
     }
 
     /// Returns the mutable CompassGaitContinuousState.
-    static KneedcompassgaitContinuousstate<T>& get_mutable_continuous_state(
-            systems::Context<T>* context) {
+    static KneedcompassgaitContinuousstate<double>& get_mutable_continuous_state(
+            systems::Context<double>* context) {
         return get_mutable_continuous_state(
                 &context->get_mutable_continuous_state());
     }
 
     // Set and Get two state: Discrete position of the stance toa;
     //  boolen indicator of "left support"
-    static const T& get_toe_position(const systems::Context<T>& context) {
+    static const double& get_toe_position(const systems::Context<double>& context) {
         return context.get_discrete_state(0).GetAtIndex(0);
     }
 
-    static void set_toe_position(const T& value, systems::State<T>* state) {
+    static void set_toe_position(const double& value, systems::State<double>* state) {
         state->get_mutable_discrete_state().get_mutable_vector(0).SetAtIndex(0,
                 value);
     }
 
-    static bool left_leg_is_stance(const systems::Context<T> &context) {
+    static bool left_leg_is_stance(const systems::Context<double> &context) {
         return context.template get_abstract_state<bool>(0);
     }
 
-    static void set_left_leg_is_stance(bool value, systems::State<T>* state) {
+    static void set_left_leg_is_stance(bool value, systems::State<double>* state) {
         state->template get_mutable_abstract_state<bool>(0) = value;
     }
 
     /// Access the KneedCompassGaitParams.
-    const KneedcompassgaitParams<T>& get_parameters(
-            const systems::Context<T>& context) const {
+    const KneedcompassgaitParams<double>& get_parameters(
+            const systems::Context<double>& context) const {
         return this->template GetNumericParameter<
                 KneedcompassgaitParams>(context, 0);
     }
@@ -109,20 +108,20 @@ class KneedCompassGait final : public systems::LeafSystem<T>{
     ///   i.e. bias = C(q,v)*v - τ_g(q).
 
     RigidBodyTree<double>* rigidtree;
-    Vector4 <T> DynamicsBiasTerm(const systems::Context<T> &context) const;
+    Vector4 <double> DynamicsBiasTerm(const systems::Context<double> &context) const;
     // MassMatrix had had parameter: const systems::Context<T> &context
 //    Matrix4<T> MassMatrix(void) const;
 
  protected:
-    static const KneedcompassgaitContinuousstate<T>& get_continuous_state(
-            const systems::ContinuousState<T>& cstate) {
-        return dynamic_cast<const KneedcompassgaitContinuousstate<T>&>(
+    static const KneedcompassgaitContinuousstate<double>& get_continuous_state(
+            const systems::ContinuousState<double>& cstate) {
+        return dynamic_cast<const KneedcompassgaitContinuousstate<double>&>(
                 cstate.get_vector());
     }
 
-    static KneedcompassgaitContinuousstate<T>& get_mutable_continuous_state(
-            systems::ContinuousState<T>* cstate) {
-        return dynamic_cast<KneedcompassgaitContinuousstate<T>&>(
+    static KneedcompassgaitContinuousstate<double>& get_mutable_continuous_state(
+            systems::ContinuousState<double>* cstate) {
+        return dynamic_cast<KneedcompassgaitContinuousstate<double>&>(
                 cstate->get_mutable_vector());
     }
 
@@ -133,7 +132,7 @@ class KneedCompassGait final : public systems::LeafSystem<T>{
 
 // WitnessFunction to check when the foot hits the groud (with a sufficiently
     // large step length).
-    T FootCollision(const systems::Context<T>& context) const;
+    double FootCollision(const systems::Context<double>& context) const;
 
 //   Handles the impact dynamics, including resetting the stance and swing legs.
 //    void CollisionDynamics(const systems::Context<T> &context,
@@ -141,22 +140,22 @@ class KneedCompassGait final : public systems::LeafSystem<T>{
 //                           systems::State<T> *state) const;
 
     // function pointers will be used when define the two ouput ports
-    void MinimalStateOut(const systems::Context<T>& context,
-                         KneedcompassgaitContinuousstate<T>* output) const;
-    void FloatingBaseStateOut(const systems::Context<T>& context,
-                              systems::BasicVector<T>* output) const;
+    void MinimalStateOut(const systems::Context<double>& context,
+                         KneedcompassgaitContinuousstate<double>* output) const;
+    void FloatingBaseStateOut(const systems::Context<double>& context,
+                              systems::BasicVector<double>* output) const;
 
     // Implements the simple double pendulum dynamics during stance.
     void DoCalcTimeDerivatives(
-            const systems::Context<T>& context,
-            systems::ContinuousState<T>* derivatives) const final;
+            const systems::Context<double>& context,
+            systems::ContinuousState<double>* derivatives) const final;
 
 //    void DoGetWitnessFunctions(const systems::Context<T>&,
 //            std::vector<const systems::WitnessFunction<T>*>*
 //                               witnesses) const final;
 
     // The system stores its witness function internally.
-    std::unique_ptr<systems::WitnessFunction<T>> foot_collision_;
+    std::unique_ptr<systems::WitnessFunction<double>> foot_collision_;
 
 private:
 
