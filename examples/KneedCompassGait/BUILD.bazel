@@ -41,6 +41,25 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "newKCG",
+    srcs = ["newKCG.cpp"],
+    hdrs = ["newKCG.h"],
+    data = ["KneedCompassGait.urdf"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":Kneed_compass_gait_vector_types",
+        "//attic/multibody/rigid_body_plant",
+        "//common:default_scalars",
+        "//common:essential",
+        "//systems/framework:leaf_system",
+        "@drake//attic/multibody:rigid_body_tree",
+        "@drake//attic/multibody:rigid_body_tree_construction",
+        "@drake//attic/multibody/joints",
+        "@drake//attic/multibody/parsers",
+    ],
+)
+
+drake_cc_library(
     name = "KneedCompassGait_lcm",
     srcs = ["KneedCompassGait_lcm.cpp"],
     hdrs = ["KneedCompassGait_lcm.h"],
@@ -65,9 +84,32 @@ drake_cc_binary(
         "//attic/multibody/rigid_body_plant:drake_visualizer",
         "//common:find_resource",
         "//lcm",
+        "//math:autodiff",
         "//math:geometric_transform",
         "//systems/analysis:simulator",
         "//systems/framework:diagram_builder",
+        "@gflags",
+    ],
+)
+
+drake_cc_binary(
+    name = "secsimulate",
+    srcs = ["secsimulate.cpp"],
+    deps = [
+        ":newKCG",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/parsers",
+        "//attic/multibody/rigid_body_plant",
+        "//attic/multibody/rigid_body_plant:frame_visualizer",
+        "//common:find_resource",
+        "//lcm",
+        "//math:autodiff",
+        "//math:geometric_transform",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram_builder",
+        "@drake//attic/manipulation/util:sim_diagram_builder",
+        "@drake//attic/multibody/rigid_body_plant:drake_visualizer",
+        "@drake//systems/primitives:constant_vector_source",
         "@gflags",
     ],
 )
