@@ -3,11 +3,12 @@
 
 #include <gflags/gflags.h>
 
-#include "drake/examples/KneedCompassGait/gen/KneedCompassGait_ContinuousState.h"
-#include "drake/examples/KneedCompassGait/gen/KneedCompassGait_Params.h"
-#include "drake/common/find_resource.h"
+#include "drake/manipulation/util/sim_diagram_builder.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/math/rotation_matrix.h"
+#include "drake/common/find_resource.h"
+#include "drake/examples/KneedCompassGait/gen/KneedCompassGait_ContinuousState.h"
+#include "drake/examples/KneedCompassGait/gen/KneedCompassGait_Params.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
 #include "drake/multibody/rigid_body_tree.h"
@@ -24,6 +25,10 @@
 namespace drake {
 namespace examples {
 namespace kkk {
+    DEFINE_double(target_realtime_rate, 1.0,
+                  "Playback speed.  See documentation for "
+                  "Simulator::set_target_realtime_rate() for details.");
+
     class kkkcg : public systems::LeafSystem<double> {
     public:
         kkkcg(){
@@ -68,6 +73,12 @@ namespace kkk {
             return get_continuous_state(context.get_continuous_state());
         }
 
+        static KneedCompassGait::KneedcompassgaitContinuousstate<double>&
+                get_mutable_continuous_state(systems::Context<double>* context) {
+            return get_mutable_continuous_state(
+                    &context->get_mutable_continuous_state());
+        }
+
         static const double& get_toe_position(
                 const systems::Context<double>& context) {
             return context.get_discrete_state(0).GetAtIndex(0);
@@ -77,10 +88,8 @@ namespace kkk {
             return context.template get_abstract_state<bool>(0);
         }
 
-        void FloatingBaseStateOut(
-                const systems::Context<double>& context,
-                systems::BasicVector<double>* output
-                ) const {
+        void FloatingBaseStateOut(const systems::Context<double>& context,
+                systems::BasicVector<double>* output) const {
             const KneedCompassGait::KneedcompassgaitContinuousstate<double>&
                     cs = get_continuous_state(context);
 //            const KneedCompassGait::KneedcompassgaitParams<double>&
@@ -125,8 +134,7 @@ namespace kkk {
         }
 
         template <typename Scalar>
-        std::unique_ptr<RigidBodyTree<Scalar>>
-        getkkkcgTree() const {
+        std::unique_ptr<RigidBodyTree<Scalar>> getkkkcgTree() const {
             auto tree = std::make_unique<RigidBodyTree<Scalar>>();
             std::string urdf_path =
                     "drake/examples/KneedCompassGait/KneedCompassGait.urdf";
@@ -150,32 +158,114 @@ namespace kkk {
             auto tree = std::make_unique<RigidBodyTree<double>>();
             tree = getkkkcgTree<double>();
 
-            Eigen::VectorXd nq(9), nv(9) ,temp;
-            nq = context.get_continuous_state().CopyToVector();
+            Eigen::VectorXd nq(9), nv(9) ,temp(18);
+            temp = context.get_continuous_state().CopyToVector();
+            nq << temp.segment(0, 8);
+            nv << temp.segment(9, 17);
             auto kinsol = tree->doKinematics(nq, nv);
+
+            auto M = tree->massMatrix(kinsol);
+            auto C_bias = tree->dynamicsBiasTerm(kinsol, {});
 
 
             VectorX<double> xdot(18);
+            xdot << nv, -M.inverse()*C_bias;
+            std::cout << xdot << std::endl;
             derivatives->SetFromVector(xdot);
         };
 
+        double DoCalcKineticEnergy(
+                const systems::Context<double>& context) const override {
+            //  std::cout << "DoCalcKineticEnergy 1 excuted" << std::endl;
+            VectorX<double> x = context.get_continuous_state().CopyToVector();
+
+            auto tree = std::make_unique<RigidBodyTree<double>>();
+            tree = getkkkcgTree<double>();
+
+            Eigen::VectorXd nq(9), nv(9) ,temp(18);
+            temp = context.get_continuous_state().CopyToVector();
+            nq << temp.segment(0, 8);
+            nv << temp.segment(9, 17);
+            auto kinsol = tree->doKinematics(nq, nv);
+
+            VectorX<double> T(1);
+            T << (nq.transpose()*(tree->massMatrix(kinsol))*nq)/2.;
+            return T[1];
+            //   std::cout << "DoCalcKineticEnergy 2 excuted" << std::endl;
+        }
+
         static const KneedCompassGait::KneedcompassgaitContinuousstate<double>&
-                get_continuous_state(const systems::ContinuousState<double>& cstate) {
+        get_continuous_state(const systems::ContinuousState<double>& cstate) {
             return dynamic_cast<
-            const KneedCompassGait::KneedcompassgaitContinuousstate<double>&>(
+                    const KneedCompassGait::KneedcompassgaitContinuousstate<double>&>(
                     cstate.get_vector());
         }
+
+        static KneedCompassGait::KneedcompassgaitContinuousstate<double>&
+                get_mutable_continuous_state(systems::ContinuousState<double>* cstate) {
+            return dynamic_cast<KneedCompassGait::KneedcompassgaitContinuousstate<double>&>(
+                    cstate->get_mutable_vector());
+        }
+
     };
 
     int main() {
-        kkkcg basic_system;
-        systems::Simulator<double> simulator(basic_system);
+        using manipulation::util::SimDiagramBuilder;
+        using systems::DiagramBuilder;
+        using systems::RigidBodyPlant;
+        using systems::Simulator;
 
-        systems::ContinuousState<double>& state =
-                simulator.get_mutable_context().get_mutable_continuous_state();
+    //    kkkcg basic_system;
+        drake::lcm::DrakeLcm lcm;
+   //     SimDiagramBuilder<double> builder;
+        DiagramBuilder<double> base_builder;
+   //     RigidBodyPlant<double>* plant = nullptr;
+        auto tree = std::make_unique<RigidBodyTree<double>>();
+        std::string urdf_path =
+                "drake/examples/KneedCompassGait/KneedCompassGait.urdf";
 
-        state[0] = 0.9;
+        drake::parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow(urdf_path), multibody::joints::kRollPitchYaw,
+                tree.get()
+        );
 
+        auto kcg_system = base_builder.AddSystem<kkkcg>();
+        kcg_system->set_name("kneedCompassGait");
+
+        auto publisher = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm);
+        publisher->set_name("publisher");
+
+        base_builder.Connect(kcg_system->get_output_port(0),
+                publisher->get_input_port(0));
+        auto diagram = base_builder.Build();
+
+        Simulator<double> simulator(*diagram);
+        systems::Context<double>& rw_context = diagram->GetMutableSubsystemContext(
+                *kcg_system, &simulator.get_mutable_context());
+        KneedCompassGait::KneedcompassgaitContinuousstate<double>& state =
+                kcg_system->get_mutable_continuous_state(&rw_context);
+
+        state.set_x(0.0);
+        state.set_y(0.0);
+        state.set_z(1.0);
+        state.set_roll(0.0);
+        state.set_pitch(0.0);
+        state.set_yaw(0.0);
+        state.set_angle_stance_knee(0.0);
+        state.set_angle_swing_knee(-0.5);
+        state.set_angle_hip(-0.1);
+        state.set_xdot(0.0);
+        state.set_ydot(0.0);
+        state.set_zdot(0.0);
+        state.set_wr(0.0);
+        state.set_wp(0.0);
+        state.set_wy(0.0);
+        state.set_angledot_stance_knee(0.0);
+        state.set_angledot_swing_knee(0.0);
+        state.set_angledot_hip(0.0);
+
+        simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
+        simulator.get_mutable_context().SetAccuracy(1e-4);
         simulator.AdvanceTo(1);
 
         return 0;
