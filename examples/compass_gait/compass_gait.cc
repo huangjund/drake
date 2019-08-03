@@ -12,6 +12,7 @@ template <typename T>
 CompassGait<T>::CompassGait()
     : systems::LeafSystem<T>(
           systems::SystemTypeTag<examples::compass_gait::CompassGait>{}) {
+  //  std::cout << "constructor 1 excuted" << std::endl;
   this->DeclareContinuousState(CompassGaitContinuousState<T>(), 2, 2, 0);
 
   // Discrete state for stance toe distance along the ramp.
@@ -43,11 +44,13 @@ CompassGait<T>::CompassGait()
       "foot collision",
       systems::WitnessFunctionDirection::kPositiveThenNonPositive,
       &CompassGait::FootCollision, &CompassGait::CollisionDynamics);
+ //   std::cout << "constructor 2 excuted" << std::endl;
 }
 
 template <typename T>
 T CompassGait<T>::DoCalcKineticEnergy(
     const systems::Context<T>& context) const {
+  //  std::cout << "DoCalcKineticEnergy 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   const CompassGaitParams<T>& params = get_parameters(context);
 
@@ -63,11 +66,13 @@ T CompassGait<T>::DoCalcKineticEnergy(
   return .5 * (mh * l * l + m * a * a) * vst * vst +
          .5 * m * (l * l * vst * vst + b * b * vsw * vsw) -
          m * l * b * vst * vsw * cos(cg_state.swing() - cg_state.stance());
+ //   std::cout << "DoCalcKineticEnergy 2 excuted" << std::endl;
 }
 
 template <typename T>
 T CompassGait<T>::DoCalcPotentialEnergy(
     const systems::Context<T>& context) const {
+ //   std::cout << "DoCalcPotentialEnergy 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   const CompassGaitParams<T>& params = get_parameters(context);
 
@@ -83,10 +88,12 @@ T CompassGait<T>::DoCalcPotentialEnergy(
 
   return m * g * (y_toe + a * cos(cg_state.stance())) + mh * g * y_hip +
          m * g * (y_hip - b * cos(cg_state.swing()));
+  //  std::cout << "DoCalcPotentialEnergy 2 excuted" << std::endl;
 }
 
 template <typename T>
 T CompassGait<T>::FootCollision(const systems::Context<T>& context) const {
+  //  std::cout << "FootCollision 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   const CompassGaitParams<T>& params = get_parameters(context);
 
@@ -110,6 +117,7 @@ T CompassGait<T>::FootCollision(const systems::Context<T>& context) const {
   // tempting alternative is to require some minimum step length, the foot
   // scuffing is surprisingly hard to avoid with that mechanism.
   using std::max;
+ //   std::cout << "FootCollision 2 excuted" << std::endl;
   return max(collision, cg_state.swing() - cg_state.stance());
 }
 
@@ -118,6 +126,7 @@ void CompassGait<T>::CollisionDynamics(
     const systems::Context<T>& context,
     const systems::UnrestrictedUpdateEvent<T>&,
     systems::State<T>* state) const {
+  //  std::cout << "CollisionDynamics 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   CompassGaitContinuousState<T>& next_state =
       get_mutable_continuous_state(&(state->get_mutable_continuous_state()));
@@ -183,18 +192,22 @@ void CompassGait<T>::CollisionDynamics(
 
   // Switch stance foot from left to right (or back).
   set_left_leg_is_stance(!left_leg_is_stance(context), state);
+ //   std::cout << "CollisionDynamics 2 excuted" << std::endl;
 }
 
 template <typename T>
 void CompassGait<T>::MinimalStateOut(
     const systems::Context<T>& context,
     CompassGaitContinuousState<T>* output) const {
+ //   std::cout << "MinimalStateOut 1 excuted" << std::endl;
   output->SetFromVector(get_continuous_state(context).CopyToVector());
+ //   std::cout << "MinimalStateOut 2 excuted" << std::endl;
 }
 
 template <typename T>
 void CompassGait<T>::FloatingBaseStateOut(
     const systems::Context<T>& context, systems::BasicVector<T>* output) const {
+ //   std::cout << "FloatingBaseStateOut 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   const CompassGaitParams<T>& params = get_parameters(context);
   const T toe = get_toe_position(context);
@@ -236,11 +249,13 @@ void CompassGait<T>::FloatingBaseStateOut(
 
   // Hip angle derivative.
   output->SetAtIndex(13, rightdot - leftdot);
+ //   std::cout << "FloatingBaseStateOut 2 excuted" << std::endl;
 }
 
 template <typename T>
 Vector2<T> CompassGait<T>::DynamicsBiasTerm(
     const systems::Context<T>& context) const {
+ //   std::cout << "DynamicsBiasTerm 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   const CompassGaitParams<T>& params = get_parameters(context);
 
@@ -261,13 +276,14 @@ Vector2<T> CompassGait<T>::DynamicsBiasTerm(
       -m * l * b * vsw * vsw * s -
           (mh * l + m * (a + l)) * g * sin(cg_state.stance()),
       m * l * b * vst * vst * s + m * b * g * sin(cg_state.swing())};
-
+ //   std::cout << "DynamicsBiasTerm 2 excuted" << std::endl;
   return bias;
 }
 
 template <typename T>
 Matrix2<T> CompassGait<T>::MassMatrix(
     const systems::Context<T>& context) const {
+ //   std::cout << "MassMatrix 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   const CompassGaitParams<T>& params = get_parameters(context);
 
@@ -286,7 +302,7 @@ Matrix2<T> CompassGait<T>::MassMatrix(
   M << mh * l * l + m * (l * l + a * a), -m * l * b * c,
        -m * l * b * c,                   m * b * b;
   // clang-format on
-
+ //   std::cout << "MassMatrix 2 excuted" << std::endl;
   return M;
 }
 
@@ -294,12 +310,16 @@ template <typename T>
 void CompassGait<T>::DoCalcTimeDerivatives(
     const systems::Context<T>& context,
     systems::ContinuousState<T>* derivatives) const {
+ //   std::cout << "TimeDerivatives 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
 
   const Matrix2<T> M = MassMatrix(context);
   const Vector2<T> bias = DynamicsBiasTerm(context);
   const Vector2<T> B(-1, 1);
   const Vector1<T> u = this->get_input_port(0).Eval(context);
+
+  auto tree = getCompassGaitTree();
+
 
   Vector4<T> xdot;
   // clang-format off
@@ -308,12 +328,23 @@ void CompassGait<T>::DoCalcTimeDerivatives(
           M.inverse() * (B*u - bias);
   // clang-format on
   derivatives->SetFromVector(xdot);
+ //   std::cout << "TimeDerivatives 2 excuted" << std::endl;
+}
+
+template <typename T>
+std::unique_ptr<RigidBodyTree<T>> CompassGait<T>::getCompassGaitTree() const {
+    auto tree = std::make_unique<RigidBodyTree<T>>();
+    parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+            FindResourceOrThrow("drake/examples/compass_gait/CompassGait.urdf"),
+            multibody::joints::kRollPitchYaw, tree.get());
+    return tree;
 }
 
 template <typename T>
 void CompassGait<T>::DoGetWitnessFunctions(
     const systems::Context<T>&,
     std::vector<const systems::WitnessFunction<T>*>* witnesses) const {
+ //   std::cout << "DoGetWitnessFunction 1 excuted" << std::endl;
   witnesses->push_back(foot_collision_.get());
 }
 
@@ -321,8 +352,7 @@ void CompassGait<T>::DoGetWitnessFunctions(
 }  // namespace examples
 }  // namespace drake
 
-//drake::examples::compass_gait::CompassGait<double> CompassGait();
-
+// template class drake::examples::compass_gait::CompassGait<double>;
 
 DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
     class ::drake::examples::compass_gait::CompassGait)

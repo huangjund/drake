@@ -30,11 +30,15 @@ drake_cc_library(
     hdrs = [
         "compass_gait.h",
     ],
+    data = ["CompassGait.urdf"],
     visibility = ["//visibility:public"],
     deps = [
         ":compass_gait_vector_types",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/parsers",
         "//common:default_scalars",
         "//common:essential",
+        "//common:find_resource",
         "//systems/framework:leaf_system",
     ],
 )

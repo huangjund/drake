@@ -80,6 +80,7 @@ int DoMain() {
     multibody::AddFlatTerrainToWorld(tree.get(), 100., 10.);
     plant = builder.AddPlant(std::move(tree));
   }
+
   // Creates and adds LCM publisher for visualization.
   auto lcm = base_builder->AddSystem<systems::lcm::LcmInterfaceSystem>();
   builder.AddVisualizer(lcm);
@@ -214,6 +215,7 @@ int DoMain() {
                                        &simulator.get_mutable_context()),
       VectorX<double>::Zero(tree.get_num_positions()));
 
+  std::cout << "ok" << std::endl;
   // Simulate for a very long time.
   simulator.AdvanceTo(FLAGS_simulation_sec);
 

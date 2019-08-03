@@ -8,11 +8,13 @@ namespace drake {
 namespace examples {
 namespace KneedCompassGait {
 
-
-KneedCompassGait::KneedCompassGait(
-        RigidBodyTree<double> *tree) : systems::LeafSystem<double>() {
+template <typename T>
+KneedCompassGait<T>::KneedCompassGait(
+        RigidBodyTree<T> *tree) : systems::LeafSystem<T>(
+        systems::SystemTypeTag<
+                examples::KneedCompassGait::KneedCompassGait>{}) {
     // Four Continuous State
-    this->DeclareContinuousState(KneedcompassgaitContinuousstate<double>(), 4, 4, 0);
+    this->DeclareContinuousState(KneedcompassgaitContinuousstate<T>(), 4, 4, 0);
 
     // Discrete state for left toe distance along the plane.
     this->DeclareDiscreteState(1);
@@ -23,15 +25,15 @@ KneedCompassGait::KneedCompassGait(
     this->DeclareAbstractState(AbstractValue::Make(left_stance));
 
     // The minimal state of the system; ###this version will be deprecated
-    this->DeclareVectorOutputPort(KneedcompassgaitContinuousstate<double>(),
+    this->DeclareVectorOutputPort(KneedcompassgaitContinuousstate<T>(),
                                 &KneedCompassGait::MinimalStateOut);
 
     // The floating-base state of the system(useful for visual)
-    this->DeclareVectorOutputPort(systems::BasicVector<double>(18),
+    this->DeclareVectorOutputPort(systems::BasicVector<T>(18),
                                 &KneedCompassGait::FloatingBaseStateOut);
 
     // Natural property
-    this->DeclareNumericParameter(KneedcompassgaitParams<double>());
+    this->DeclareNumericParameter(KneedcompassgaitParams<T>());
 
     rigidtree = tree;
 
@@ -106,22 +108,22 @@ KneedCompassGait::KneedCompassGait(
 //  }
 
 // wittness trigger function
-
-double KneedCompassGait::FootCollision(
-          const systems::Context<double>& context) const {
-    const KneedcompassgaitContinuousstate<double>& cs =
+template <typename T>
+T KneedCompassGait<T>::FootCollision(
+          const systems::Context<T>& context) const {
+    const KneedcompassgaitContinuousstate<T>& cs =
             get_continuous_state(context);
-    const KneedcompassgaitParams<double>& p = get_parameters(context);
+    const KneedcompassgaitParams<T>& p = get_parameters(context);
 
     using std::cos;
     // Compute angle through geometric constraints
-    const double theta1 = cs.angle_thigh() + cs.angle_hip();
-    const double theta2 = theta1 + cs.angle_swing_knee();
-    const double theta3 = cs.angle_thigh() + cs.angle_stance_knee();
-    const double swing_height = p.length_leg()*(cos(theta1) + cos(theta2));
-    const double stance_height = p.length_leg()*(cos(theta3) + cos(cs.angle_hip()));
+    const T theta1 = cs.angle_thigh() + cs.angle_hip();
+    const T theta2 = theta1 + cs.angle_swing_knee();
+    const T theta3 = cs.angle_thigh() + cs.angle_stance_knee();
+    const T swing_height = p.length_leg()*(cos(theta1) + cos(theta2));
+    const T stance_height = p.length_leg()*(cos(theta3) + cos(cs.angle_hip()));
 
-    const double collision = stance_height - swing_height;
+    const T collision = stance_height - swing_height;
 
     return collision;
 }
@@ -216,27 +218,28 @@ double KneedCompassGait::FootCollision(
 //    set_left_leg_is_stance(!left_leg_is_stance(context), state);
 //}
 
-
-void KneedCompassGait::MinimalStateOut(
-        const systems::Context<double>& context,
-        KneedcompassgaitContinuousstate<double>* output) const {
+template <typename T>
+void KneedCompassGait<T>::MinimalStateOut(
+        const systems::Context<T>& context,
+        KneedcompassgaitContinuousstate<T>* output) const {
     output->SetFromVector(get_continuous_state(context).CopyToVector());
 }
 
-void KneedCompassGait::FloatingBaseStateOut(
-    const systems::Context<double>& context,
-    systems::BasicVector<double>* output) const {
-const KneedcompassgaitContinuousstate<double>& cs =
+template <typename T>
+void KneedCompassGait<T>::FloatingBaseStateOut(
+    const systems::Context<T>& context,
+    systems::BasicVector<T>* output) const {
+const KneedcompassgaitContinuousstate<T>& cs =
         get_continuous_state(context);
-const KneedcompassgaitParams<double>& p = get_parameters(context);
-const double ltoe = get_toe_position(context);
+const KneedcompassgaitParams<T>& p = get_parameters(context);
+const T ltoe = get_toe_position(context);
 const bool left_stance = left_leg_is_stance(context);
 
 // x, y, z.
-const double x = ltoe + p.length_leg()*sin(cs.angle_hip()+cs.angle_stance_knee())
+const T x = ltoe + p.length_leg()*sin(cs.angle_hip()+cs.angle_stance_knee())
         + p.length_leg()*sin(cs.angle_stance_knee());
-const double y = 0.0;
-const double z = p.length_leg()*cos(cs.angle_hip()+cs.angle_stance_knee()) +
+const T y = 0.0;
+const T z = p.length_leg()*cos(cs.angle_hip()+cs.angle_stance_knee()) +
         p.length_leg()*cos(cs.angle_hip());
 
 output->SetAtIndex(0, x);
@@ -245,10 +248,10 @@ output->SetAtIndex(2, z);
 
 // const T right = left_stance ? cs.swing() : cs.stance();
 // left and right here is talking about angle of left knee and right knee
-const double left = left_stance ?
+const T left = left_stance ?
         cs.angle_stance_knee() :
         cs.angle_swing_knee();
-const double left_thigh = left_stance ? cs.angle_hip() :
+const T left_thigh = left_stance ? cs.angle_hip() :
         cs.angle_thigh() + cs.angle_hip();
 //    const T right_thigh = left_stance ? cs.angle_hip()+cs.angle_thigh() :
 //            cs.angle_hip();
@@ -267,14 +270,14 @@ output->SetAtIndex(8, cs.angle_swing_knee());
 
 // x, y, z derivatives.
 // TODO(Junda): need to be modified
-const double x_dot = cs.angledot_stance_knee();
-const double y_dot = 0.0;
-const double z_dot = cs.angledot_stance_knee();
+const T x_dot = cs.angledot_stance_knee();
+const T y_dot = 0.0;
+const T z_dot = cs.angledot_stance_knee();
 output->SetAtIndex(9, x_dot);
 output->SetAtIndex(10, y_dot);
 output->SetAtIndex(11, z_dot);
 
-const double leftdot =
+const T leftdot =
         left_stance ? cs.angledot_stance_knee()+cs.angledot_hip() :
         cs.angledot_swing_knee()+cs.angledot_thigh()+cs.angledot_hip();
 
@@ -292,30 +295,30 @@ output->SetAtIndex(17, cs.angledot_swing_knee());
 
   // cs means continuous states
   // p means parameters
-
-Vector4 <double> KneedCompassGait::DynamicsBiasTerm(
-        const systems::Context<double>& context) const {
-    const KneedcompassgaitContinuousstate<double>& cs =
+template <typename T>
+Vector4 <T> KneedCompassGait<T>::DynamicsBiasTerm(
+        const systems::Context<T>& context) const {
+    const KneedcompassgaitContinuousstate<T>& cs =
             get_continuous_state(context);
-    const KneedcompassgaitParams<double>& p = get_parameters(context);
+    const KneedcompassgaitParams<T>& p = get_parameters(context);
 
     using std::sin;
 
     // Shorthand used in the textbook.
-    const double m = p.mass_leg();
-    const double mh = p.mass_hip();
-    const double l = p.length_leg();
-    const double a1 = p.length_leg() - p.length_hip2upper_leg();
-    const double b1 = p.length_hip2upper_leg();
+    const T m = p.mass_leg();
+    const T mh = p.mass_hip();
+    const T l = p.length_leg();
+    const T a1 = p.length_leg() - p.length_hip2upper_leg();
+    const T b1 = p.length_hip2upper_leg();
 //    const T a2 = p.length_leg() - p.length_knee2lower_leg();
 //    const T b2 = p.length_knee2lower_leg();
-    const double wls = cs.angledot_stance_knee();
-    const double wrs = cs.angledot_swing_knee();
+    const T wls = cs.angledot_stance_knee();
+    const T wrs = cs.angledot_swing_knee();
 //    const T wlt = cs.angledot_hip();
 //    const T wrt = cs.angledot_thigh();
-    const double g = p.gravity();
+    const T g = p.gravity();
 
-    Vector4<double> bias{
+    Vector4<T> bias{
             -m * l * b1 * wls * wls  -
             (mh * l + m * (a1 + l)) * g ,
             m * l * b1 * wrs * wrs + m * b1 * g,
@@ -326,38 +329,42 @@ Vector4 <double> KneedCompassGait::DynamicsBiasTerm(
 }
 
 
-void KneedCompassGait::DoCalcTimeDerivatives(
-        const systems::Context<double>& context,
-        systems::ContinuousState<double>* derivatives) const {
-    const KneedcompassgaitContinuousstate<double>& cs =
+template <typename T>
+void KneedCompassGait<T>::DoCalcTimeDerivatives(
+        const systems::Context<T>& context,
+        systems::ContinuousState<T>* derivatives) const {
+    const KneedcompassgaitContinuousstate<T>& cs =
             get_continuous_state(context);
 
     // get generalized coordination
-    VectorX<double> state(18);
+    VectorX<T> state(18);
     state << this->get_output_port(1).Eval(context);
     int num = 18;
-    VectorX<double> nq(9), nv(9);
+    VectorX<T> nq(9), nv(9);
     for (int i = 0; i < num; ++i) {
         nq[i] = state[i];
         nv[i] = state[i+num];
     }
-//    std::cout << "ok " << std::endl;
+
     // get Kinematic cache and initialize it
     auto kinsol = rigidtree->CreateKinematicsCache();
     kinsol.initialize(nq, nv);
     rigidtree->doKinematics(kinsol, true);
+//    std::cout << context.num_continuous_states() << std::endl;
+//    auto kinsol = rigidtree->CreateKinematicsCache();
+//    rigidtree->doKinematics(kinsol);
 
-//
-    Eigen::Matrix<double, 9, 9> H = rigidtree->massMatrix(kinsol);
-    Eigen::Matrix<double, 9, 1> bias = rigidtree->dynamicsBiasTerm(kinsol, {});
+//    Eigen::Matrix<T, 9, 9> H = rigidtree->massMatrix(kinsol);
+//    Eigen::Matrix<T, 9, 1> bias = rigidtree->dynamicsBiasTerm(kinsol, {});
 
-    Eigen::Matrix <double, 8, 1> xdot;
+    Eigen::Matrix <T, 8, 1> xdot;
     xdot << cs.angledot_stance_knee(),
-    cs.angledot_swing_knee(), 1.0, 0, 0, 0, 0,
-    -H.inverse() * bias;
+    cs.angledot_swing_knee(), 1.0, 0, 0, 0, 0, 0;
+//    -H.inverse() * bias;
 
     derivatives->SetFromVector(xdot);
 }
+
 
 //template <typename T>
 //void KneedCompassGait<T>::DoGetWitnessFunctions(
@@ -370,5 +377,6 @@ void KneedCompassGait::DoCalcTimeDerivatives(
 }  // namespace examples
 }  // namespace drake
 
-//DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
-//        class drake::examples::KneedCompassGait::KneedCompassGait)
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+        class ::drake::examples::KneedCompassGait::KneedCompassGait)

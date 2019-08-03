@@ -25,7 +25,9 @@ DEFINE_double(target_realtime_rate, 1.0,
 /// command-line arguments.  Run drake-visualizer to watch the results.
 int DoMain() {
   systems::DiagramBuilder<double> builder;
+//  std::cout << "1" << std::endl;
   auto compass_gait = builder.AddSystem<CompassGait>();
+//  std::cout << "2" << std::endl;
   compass_gait->set_name("compass_gait");
 
   auto tree = std::make_unique<RigidBodyTree<double>>();
@@ -78,7 +80,8 @@ int DoMain() {
 
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.get_mutable_context().SetAccuracy(1e-4);
-  simulator.AdvanceTo(10);
+ // std::cout << "before simulate" << std::endl;
+  simulator.AdvanceTo(50);
 
   return 0;
 }

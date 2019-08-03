@@ -30,18 +30,22 @@ int DoMain() {
 
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(FindResourceOrThrow(
             "drake/examples/KneedCompassGait/KneedCompassGait.urdf"),
-                    multibody::joints::kRollPitchYaw, tree);
+                    multibody::joints::kQuaternion, tree);
 
     using std::cout;
     using std::cin;
     using std::endl;
 //  TODO(Junda): this part is doKinematics, but have problem
 //  to call for doKinematics, because of the shard.
+    AutoDiffXd xd(1);
+    cout << "xd : " << xd << endl;
+
     drake::WrenchVector<double> external_wrench;
-    Eigen::VectorXd q_in(9), qd_in(9);
-    q_in << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+    Eigen::VectorXd q_in(10), qd_in(9);
+    q_in << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
     qd_in << 1, 2, 3, 4, 5, 6, 7, 8, 9;
     auto kinematics = tree->doKinematics(q_in, qd_in);
+    cout << tree->FindBodyIndex("hip");
 //    auto kinematics = tree->doKinematics(q_in, qd_in, true);
 //    auto kinematics = tree->CreateKinematicsCache();
 //    kinematics.initialize(q_in, qd_in);
@@ -54,18 +58,18 @@ int DoMain() {
 //    auto kinematics = tree->CreateKinematicsCache();
 //    tree->doKinematics(q_in, qd_in, true);
 
-    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
-    T.pretranslate(Eigen::Vector3d(0.5, 0, 0));
-    auto H = tree->massMatrix(kinematics);
-    auto C = tree->dynamicsBiasTerm(kinematics, {});
-    auto lshin = tree->FindBody("left_lower_leg");
-    RigidBodyFrame<double> stance_point("stance_leg", lshin, T);
-    auto stance_J = tree->CalcFrameSpatialVelocityJacobianInWorldFrame(
-            kinematics, stance_point);
-    cout << stance_J << "\n" << endl;
-    Eigen::Matrix<double, 3, 9> reduced_J;
-    reduced_J << stance_J;
-    cout << reduced_J << endl;
+//    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+//    T.pretranslate(Eigen::Vector3d(0.5, 0, 0));
+//    auto H = tree->massMatrix(kinematics);
+//    auto C = tree->dynamicsBiasTerm(kinematics, {});
+//    auto lshin = tree->FindBody("left_lower_leg");
+//    RigidBodyFrame<double> stance_point("stance_leg", lshin, T);
+//    auto stance_J = tree->CalcFrameSpatialVelocityJacobianInWorldFrame(
+//            kinematics, stance_point);
+//    cout << stance_J << "\n" << endl;
+//    Eigen::Matrix<double, 3, 9> reduced_J;
+//    reduced_J << stance_J;
+//    cout << reduced_J << endl;
 //    auto v_wf = tree->CalcFrameSpatialVelocityInWorldFrame(
 //            kinematics, stance_point);
 //    cout << "v_wf" << v_wf << endl;
@@ -148,11 +152,11 @@ int DoMain() {
 //            rigidbody, drake::WrenchVector<double>> eWrench;
 
 
-//    auto num = tree->get_num_positions();
-//    for (int i = 0; i < num; ++i) {
-//            cout << tree->get_position_name(i) << endl;
-//           // cout << tree->get_velocity_name(i) << endl;
-//    }
+    auto num = tree->get_num_positions() + tree->get_num_velocities();
+    for (int i = 0; i < num; ++i) {
+            cout << tree->getStateName(i) << endl;
+           // cout << tree->get_velocity_name(i) << endl;
+    }
 
 //    Eigen::Matrix<double, 6, 9> M;
 //    for (int i = 0; i < 54; ++i) {

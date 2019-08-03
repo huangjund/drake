@@ -39,7 +39,7 @@ namespace newKCG{
         k2 = 1
     };
 
-    VectorX<double> KCGFixedPointState(FloatingBaseType floatingBaseType =
+    VectorX<double> KCGFixedPointState(FloatingBaseType floating_base =
             FloatingBaseType::kRollPitchYaw);
 
     VectorX<double> KCGFixedPointTorque();
@@ -57,6 +57,7 @@ namespace newKCG{
 
     template <typename T>
     void setDefaultContactParams(RigidBodyPlant<T>& plant);
+
 }  // namespace newKCG
 }  // namespace examples
 }  // namespace drake

@@ -18,18 +18,19 @@
 #include "drake/systems/primitives/constant_vector_source.h"
 
 #include <memory>
-
-DEFINE_double(simulation_sec, std::numeric_limits<double>::infinity(),
-              "Number of seconds to simulate.");
-DEFINE_string(urdf, "", "Name of urdf to load");
-DEFINE_bool(visualize_frames, true, "Visualize end effector frames");
-DEFINE_double(target_realtime_rate, 1.0,
-              "Playback speed.  See documentation for "
-              "Simulator::set_target_realtime_rate() for details.");
+#include <gflags/gflags.h>
 
 namespace drake {
 namespace examples {
 namespace newKCG {
+namespace {
+    DEFINE_double(simulation_sec, std::numeric_limits<double>::infinity(),
+    "Number of seconds to simulate.");
+    DEFINE_string(urdf, "", "Name of urdf to load");
+    DEFINE_bool(visualize_frames, true, "Visualize end effector frames");
+    DEFINE_double(target_realtime_rate, 1.0,
+    "Playback speed.  See documentation for "
+    "Simulator::set_target_realtime_rate() for details.");
 
     using drake::manipulation::util::SimDiagramBuilder;
     using drake::systems::ConstantVectorSource;
@@ -64,6 +65,7 @@ namespace newKCG {
 
         VectorX<double> constant_vector(plant->get_input_port(0).size());
         constant_vector.setZero();
+        constant_vector[0] = 0.1;
         auto constant_zero_source =
                 base_builder->AddSystem<ConstantVectorSource<double>>(constant_vector);
         constant_zero_source->set_name("zero input");
@@ -76,8 +78,9 @@ namespace newKCG {
 
         Simulator<double> simulator(*sys);
 
+        lcm.HandleSubscriptions(10);
         simulator.set_publish_every_time_step(true);
-        simulator.set_target_realtime_rate(1.0);
+        simulator.set_target_realtime_rate(1);
 
         // simulator.get_mutable_context().get_mutable_continuous_state().
         //       SetFromVector(CassieFixedPointState());
@@ -85,10 +88,20 @@ namespace newKCG {
                                 KCGFixedPointState());
         simulator.Initialize();
 
-        simulator.StepTo(1.0);
+//        auto context = plant->CreateDefaultContext();
+//        std::cout << plant->get_num_positions() << std::endl;
+//        std::cout << plant->get_output_port(0).Eval(*context) << std::endl;
 
+
+        simulator.AdvanceTo(10.0);
         return 0;
     }
+}
 }  // namespace newKCG
 }  // namespace examples
 }  // namespace drake
+
+int main(int argc, char* argv[]){
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    return drake::examples::newKCG::DoMain();
+}

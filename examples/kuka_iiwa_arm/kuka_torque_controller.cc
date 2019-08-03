@@ -2,6 +2,7 @@
 
 #include <utility>
 #include <vector>
+#include <typeinfo>
 
 #include "drake/systems/controllers/pid_controller.h"
 #include "drake/systems/controllers/rbt_inverse_dynamics.h"

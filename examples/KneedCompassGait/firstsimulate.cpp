@@ -73,7 +73,7 @@ int DoMain() {
     systems::Context<double>& rw_context = diagram->GetMutableSubsystemContext(
             *kneed_compass_gait, &simulator.get_mutable_context());
     KneedcompassgaitContinuousstate<double>& state =
-            KneedCompassGait::get_mutable_continuous_state(&rw_context);
+            kneed_compass_gait->get_mutable_continuous_state(&rw_context);
 
     state.set_angle_stance_knee(2.0);
     state.set_angle_swing_knee(0.0);

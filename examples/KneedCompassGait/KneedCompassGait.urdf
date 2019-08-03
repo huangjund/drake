@@ -56,8 +56,32 @@
                 <color rgba="1 0 0 1"/>
             </material>
         </visual>
+        <visual>
+            <origin xyz="0 0 -0.5" />
+            <geometry>
+                <sphere radius="0.01"/>
+            </geometry>
+            <material name="red">
+                <color rgba="1 0 0 1"/>
+            </material>
+        </visual>
         <collision>
             <origin xyz="0 0 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.01 0 -0.5" />
+            <geometry>
+                <sphere radius="0.01"/>
+            </geometry>
+            <material name="red">
+                <color rgba="1 0 0 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.01 0 -0.5"/>
             <geometry>
                 <sphere radius="0"/>
             </geometry>
@@ -124,8 +148,32 @@
                 <color rgba="0 0 1 1"/>
             </material>
         </visual>
+        <visual>
+            <origin xyz="0 0 -0.5" />
+            <geometry>
+                <sphere radius="0.01"/>
+            </geometry>
+            <material name="blue">
+                <color rgba="0 0 1 1"/>
+            </material>
+        </visual>
         <collision>
             <origin xyz="0 0 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.01 0 -0.5" />
+            <geometry>
+                <sphere radius="0.01"/>
+            </geometry>
+            <material name="blue">
+                <color rgba="0 0 1 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.01 0 -0.5"/>
             <geometry>
                 <sphere radius="0"/>
             </geometry>
@@ -165,14 +213,14 @@
         <child link="left_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit effort="100" lower="0"/>
+        <limit upper = "0" lower="-3.14"/>
     </joint>
     <joint name="right_knee_pin" type="revolute">
         <parent link="right_upper_leg"/>
         <child link="right_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit effort="100" lower="0"/>
+        <limit upper="0" lower="-3.14"/>
     </joint>
     <transmission name="hip_trans" type="SimpleTransmission">
         <actuator name="hip_torque"/>
@@ -189,14 +237,14 @@
         <joint name="right_knee_pin"/>
         <mechanicalReduction>1</mechanicalReduction>
     </transmission>
-    <collision_filter_group name="robot_links">
-        <member link="left_lower_leg_mass"/>
-        <member link="right_lower_leg_mass"/>
-        <member link="left_lower_leg"/>
-        <member link="right_lower_leg"/>
-        <member link="right_upper_leg"/>
-        <member link="left_upper_leg"/>
-        <member link="hip"/>
-        <ignored_collision_filter_group collision_filter_group="robot_links"/>
-    </collision_filter_group>
+<!--    <collision_filter_group name="robot_links">-->
+<!--        <member link="left_lower_leg_mass"/>-->
+<!--        <member link="right_lower_leg_mass"/>-->
+<!--        <member link="left_lower_leg"/>-->
+<!--        <member link="right_lower_leg"/>-->
+<!--        <member link="right_upper_leg"/>-->
+<!--        <member link="left_upper_leg"/>-->
+<!--        <member link="hip"/>-->
+<!--        <ignored_collision_filter_group collision_filter_group="robot_links"/>-->
+<!--    </collision_filter_group>-->
 </robot>

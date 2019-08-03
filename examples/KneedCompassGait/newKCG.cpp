@@ -18,20 +18,23 @@ namespace newKCG{
 
         switch (urdf_id){
             case k1:
-                urdf_path = "KneedCompassGait.urdf";
+                urdf_path =
+                    "drake/examples/KneedCompassGait/KneedCompassGait.urdf";
                 break;
             case k2:
-                urdf_path = "KneedCompassGait.urdf";
+                urdf_path =
+                    "drake/examples/KneedCompassGait/KneedCompassGait.urdf";
                 break;
         }
 
         drake::parsers::urdf::AddModelInstanceFromUrdfFile(
-                urdf_path, floating_base, nullptr, tree.get()
+                FindResourceOrThrow(urdf_path), floating_base,
+                nullptr, tree.get()
                 );
 
         // terrain
         drake::multibody::AddFlatTerrainToWorld(tree.get(), 100., 10.);
-
+        std::cout << "tree excuted" << std::endl;
         return tree;
     }
 
@@ -59,21 +62,22 @@ namespace newKCG{
         model_parameters.characteristic_radius = kContactRadius;
         model_parameters.v_stiction_tolerance = kStictionSlipTolerance;
         plant.set_contact_model_parameters(model_parameters);
+        std::cout << "contact params excuted" << std::endl;
     }
 
+    //explicit initiate the setDefaultContactParams template
     template void setDefaultContactParams<double>(RigidBodyPlant<double>&);
 
     VectorX<double> KCGFixedPointState(FloatingBaseType floating_base) {
         VectorX<double> ret(kKCGStates);
         ret << 0, 0, 1, 0, 0, 0,
-        0, M_PI, M_PI,
+        0, 1.57, -0.5,
         0, 0, 0, 0, 0, 0,
         0, 0, 0;
-
+        std::cout << "point state excuted" << std::endl;
         switch (floating_base) {
             case FloatingBaseType::kRollPitchYaw:
                 return ret;
-                break;
             default:
                 throw std::invalid_argument(
                         "only RPY supported.\n");

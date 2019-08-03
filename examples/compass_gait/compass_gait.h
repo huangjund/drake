@@ -9,6 +9,10 @@
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/framework/scalar_conversion_traits.h"
 #include "drake/systems/framework/witness_function.h"
+#include "drake/multibody/rigid_body_tree.h"
+#include "drake/multibody/parsers/urdf_parser.h"
+#include "drake/common/find_resource.h"
+#include "drake/math/rotation_matrix.h"
 
 namespace drake {
 namespace examples {
@@ -130,6 +134,9 @@ class CompassGait final : public systems::LeafSystem<T> {
     return dynamic_cast<CompassGaitContinuousState<T>&>(
         cstate->get_mutable_vector());
   }
+
+
+  std::unique_ptr<RigidBodyTree<T>> getCompassGaitTree() const ;
 
   // Calculate the kinetic and potential energy (in the world frame attached to
   // the stance toe).

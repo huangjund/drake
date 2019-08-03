@@ -1,6 +1,42 @@
 namespace: "drake::examples::KneedCompassGait"
 
 element {
+    name: "x"
+    doc: "the x coordination of floating base."
+    doc_units: "m"
+    default_value: "0.0"
+}
+element {
+    name: "y"
+    doc: "the y coordination of floating base."
+    doc_units: "m"
+    default_value: "0.0"
+}
+element {
+    name: "z"
+    doc: "the z coordination of floating base."
+    doc_units: "m"
+    default_value: "0.0"
+}
+element {
+    name: "roll"
+    doc: "the roll angle of floating base."
+    doc_units: "radius"
+    default_value: "0.0"
+}
+element {
+    name: "pitch"
+    doc: "the pitch angle of floating base."
+    doc_units: "radius"
+    default_value: "0.0"
+}
+element {
+    name: "yaw"
+    doc: "the yaw angle of floating base."
+    doc_units: "radius"
+    default_value: "0.0"
+}
+element {
     name: "angle_stance_knee"
     doc: "The angle of left leg from orientation of Shank to Thigh, measured clockwise from the vertical axis."
     doc_units: "radians"
@@ -19,9 +55,39 @@ element {
     default_value: "0.0"
 }
 element {
-    name: "angle_thigh"
-    doc: "The angle from orientation of LEFT thigh to RIGHT swing thigh, measured clockwise from the vertical axis."
-    doc_units: "radians"
+    name: "xdot"
+    doc: "the xdot coordination of floating base."
+    doc_units: "m/sec"
+    default_value: "0.0"
+}
+element {
+    name: "ydot"
+    doc: "the ydot coordination of floating base."
+    doc_units: "m/sec"
+    default_value: "0.0"
+}
+element {
+    name: "zdot"
+    doc: "the zdot coordination of floating base."
+    doc_units: "m/sec"
+    default_value: "0.0"
+}
+element {
+    name: "wr"
+    doc: "the w roll angle of floating base."
+    doc_units: "rad/sec"
+    default_value: "0.0"
+}
+element {
+    name: "wp"
+    doc: "the wp angle of floating base."
+    doc_units: "rad/sec"
+    default_value: "0.0"
+}
+element {
+    name: "wy"
+    doc: "the w yaw angle of floating base."
+    doc_units: "rad/sec"
     default_value: "0.0"
 }
 element {
@@ -42,9 +108,4 @@ element {
     doc_units: "rad/sec"
     default_value: "0.0"
 }
-element {
-    name: "angledot_thigh"
-    doc: "The angular velocity between two thigh."
-    doc_units: "rad/sec"
-    default_value: "0.0"
-}
+

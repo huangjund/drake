@@ -37,6 +37,8 @@ Matrix6<T> ComputeLumpedGripperInertiaInEndEffectorFrame(
   KinematicsCache<T> world_cache = world_tree.CreateKinematicsCache();
   world_cache.initialize(world_tree.getZeroConfiguration());
   world_tree.doKinematics(world_cache);
+    std::cout << "ok1" << std::endl;
+    std::cout << world_tree.massMatrix(world_cache);
 
   const RigidBody<T>* end_effector = world_tree.FindBody(
       end_effector_link_name, "iiwa14", iiwa_instance);
