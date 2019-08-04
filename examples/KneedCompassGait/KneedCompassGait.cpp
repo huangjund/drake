@@ -38,12 +38,12 @@ KneedCompassGait<T>::KneedCompassGait(
     rigidtree = tree;
 
     // Create the witness function
-//    foot_collision_ = this->MakeWitnessFunction(
-//            "foot collision",
-//            systems::WitnessFunctionDirection::kPositiveThenNonPositive,
-//            &KneedCompassGait::FootCollision,
-//            &KneedCompassGait::CollisionDynamics
-//            );
+    foot_collision_ = this->MakeWitnessFunction(
+            "foot collision",
+            systems::WitnessFunctionDirection::kPositiveThenNonPositive,
+            &KneedCompassGait::FootCollision,
+            &KneedCompassGait::CollisionDynamics
+            );
 }
 
 //    template <typename T>

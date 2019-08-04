@@ -20,15 +20,12 @@
 #include "drake/systems/framework/scalar_conversion_traits.h"
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/witness_function.h"
+#include "drake/systems/primitives/constant_vector_source.h"
 
 
 namespace drake {
 namespace examples {
 namespace kkk {
-    DEFINE_double(target_realtime_rate, 1.0,
-                  "Playback speed.  See documentation for "
-                  "Simulator::set_target_realtime_rate() for details.");
-
     class kkkcg : public systems::LeafSystem<double> {
     public:
         kkkcg(){
@@ -51,6 +48,13 @@ namespace kkk {
             // Natural property
             this->DeclareNumericParameter(
                     KneedCompassGait::KneedcompassgaitParams<double>());
+
+//            foot_collision = this->MakeWitnessFunction(
+//                    "foot collsion",
+//                    systems::WitnessFunctionDirection::kPositiveThenNonPositive,
+//                    &kkkcg::FootCollision,
+//                    &kkkcg::CollisionDynamics
+//                    );
 
             H << 1, 0, 0, 0, 0, 0, 0, 0, 0,
                  0, 0, 1, 0, 0, 0, 0, 0, 0,
@@ -152,8 +156,7 @@ namespace kkk {
     private:
         Eigen::Matrix<double, 6, 9> H;
         Eigen::Matrix<double, 9, 6> Ht;
-        void DoCalcTimeDerivatives(
-                const systems::Context<double>& context,
+        void DoCalcTimeDerivatives(const systems::Context<double>& context,
                 systems::ContinuousState<double>* derivatives) const override{
             auto tree = std::make_unique<RigidBodyTree<double>>();
             tree = getkkkcgTree<double>();
@@ -170,13 +173,13 @@ namespace kkk {
 
             VectorX<double> xdot(18);
             xdot << nv, -M.inverse()*C_bias;
-            std::cout << xdot << std::endl;
+            std::cout << M << std::endl;
             derivatives->SetFromVector(xdot);
         };
 
         double DoCalcKineticEnergy(
                 const systems::Context<double>& context) const override {
-            //  std::cout << "DoCalcKineticEnergy 1 excuted" << std::endl;
+            std::cout << "DoCalcKineticEnergy 1 excuted" << std::endl;
             VectorX<double> x = context.get_continuous_state().CopyToVector();
 
             auto tree = std::make_unique<RigidBodyTree<double>>();
@@ -190,8 +193,8 @@ namespace kkk {
 
             VectorX<double> T(1);
             T << (nq.transpose()*(tree->massMatrix(kinsol))*nq)/2.;
+            std::cout << "DoCalcKineticEnergy 2 excuted" << std::endl;
             return T[1];
-            //   std::cout << "DoCalcKineticEnergy 2 excuted" << std::endl;
         }
 
         static const KneedCompassGait::KneedcompassgaitContinuousstate<double>&
@@ -209,65 +212,138 @@ namespace kkk {
 
     };
 
+    template <typename Scalar>
+    std::unique_ptr<RigidBodyTree<Scalar>>
+    getKCGTree() {
+        auto tree = std::make_unique<RigidBodyTree<Scalar>>();
+        std::string urdf_path;
+        urdf_path =
+                "drake/examples/KneedCompassGait/KneedCompassGait.urdf";
+
+        drake::parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow(urdf_path),
+                multibody::joints::kRollPitchYaw, tree.get());
+
+        // terrain
+        drake::multibody::AddFlatTerrainToWorld(tree.get(), 100., 10.);
+        return tree;
+    }
+
+    std::unique_ptr<RigidBodyTree<double>>
+    getKCGTreed(){
+        return getKCGTree<double>();
+    }
+
+    template <typename T>
+    void setDefaultContactParams(systems::RigidBodyPlant<T>& plant) {
+        const double kYoung = 1e8; // Pa
+        const double kDissipation = 5.0; // s/m
+        const double kStaticFriction = 1;
+        const double kDynamicFriction = 1;
+
+        drake::systems::CompliantMaterial default_material;
+        default_material.set_youngs_modulus(kYoung)
+                .set_dissipation(kDissipation)
+                .set_friction(kStaticFriction, kDynamicFriction);
+        plant.set_default_compliant_material(default_material);
+
+        const double kStictionSlipTolerance = 0.01; // m/s
+        const double kContactRadius = 2e-3; //m
+        drake::systems::CompliantContactModelParameters model_parameters;
+        model_parameters.characteristic_radius = kContactRadius;
+        model_parameters.v_stiction_tolerance = kStictionSlipTolerance;
+        plant.set_contact_model_parameters(model_parameters);
+    }
+
+    //explicit initiate the setDefaultContactParams template
+    template void setDefaultContactParams<double>(systems::RigidBodyPlant<double>&);
+
+    VectorX<double> KCGFixedPointState() {
+        VectorX<double> ret(18);
+        ret << 0, 0, 1.0, 0, 0, 0,
+                0, -0.5, -0.1,
+                0, 0, 0, 0, 0, 0,
+                0, 0, 0;
+        return ret;
+    }
+
+    VectorX<double> KCGFixedPointTorque(){
+        VectorX<double> ff_torque(3);
+        ff_torque << 0, 0, 0;
+        return ff_torque;
+    }
+
+
+
     int main() {
         using manipulation::util::SimDiagramBuilder;
         using systems::DiagramBuilder;
         using systems::RigidBodyPlant;
         using systems::Simulator;
+        using systems::ConstantVectorSource;
 
-    //    kkkcg basic_system;
         drake::lcm::DrakeLcm lcm;
-   //     SimDiagramBuilder<double> builder;
-        DiagramBuilder<double> base_builder;
-   //     RigidBodyPlant<double>* plant = nullptr;
+        SimDiagramBuilder<double> builder;
+        RigidBodyPlant<double>* plant = nullptr;
+
+        // Create Plant
         auto tree = std::make_unique<RigidBodyTree<double>>();
-        std::string urdf_path =
-                "drake/examples/KneedCompassGait/KneedCompassGait.urdf";
+        tree = getKCGTreed();
+        plant = builder.AddPlant(std::move(tree));
 
-        drake::parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
-                FindResourceOrThrow(urdf_path), multibody::joints::kRollPitchYaw,
-                tree.get()
-        );
+        // Create LCM publisher for visualization
+        builder.AddVisualizer(&lcm);
+        builder.get_visualizer()->set_publish_period(1e-2);
 
-        auto kcg_system = base_builder.AddSystem<kkkcg>();
-        kcg_system->set_name("kneedCompassGait");
+        // contact parameters
+        setDefaultContactParams(*plant);
 
-        auto publisher = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm);
-        publisher->set_name("publisher");
+        drake::systems::DiagramBuilder<double> *base_builder =
+                builder.get_mutable_builder();
 
-        base_builder.Connect(kcg_system->get_output_port(0),
-                publisher->get_input_port(0));
-        auto diagram = base_builder.Build();
+        VectorX<double> constant_vector(plant->get_input_port(0).size());
+        constant_vector.setZero();
+        constant_vector[0] = 0.2;
+        auto constant_zero_source =
+                base_builder->AddSystem<ConstantVectorSource<double>>(constant_vector);
+        constant_zero_source->set_name("zero input");
 
-        Simulator<double> simulator(*diagram);
-        systems::Context<double>& rw_context = diagram->GetMutableSubsystemContext(
-                *kcg_system, &simulator.get_mutable_context());
-        KneedCompassGait::KneedcompassgaitContinuousstate<double>& state =
-                kcg_system->get_mutable_continuous_state(&rw_context);
+        // Connects the blank input command
+        base_builder->Connect(constant_zero_source->get_output_port(),
+                              plant->get_input_port(0));
 
-        state.set_x(0.0);
-        state.set_y(0.0);
-        state.set_z(1.0);
-        state.set_roll(0.0);
-        state.set_pitch(0.0);
-        state.set_yaw(0.0);
-        state.set_angle_stance_knee(0.0);
-        state.set_angle_swing_knee(-0.5);
-        state.set_angle_hip(-0.1);
-        state.set_xdot(0.0);
-        state.set_ydot(0.0);
-        state.set_zdot(0.0);
-        state.set_wr(0.0);
-        state.set_wp(0.0);
-        state.set_wy(0.0);
-        state.set_angledot_stance_knee(0.0);
-        state.set_angledot_swing_knee(0.0);
-        state.set_angledot_hip(0.0);
+        auto sys = builder.Build();
 
-        simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
+        Simulator<double> simulator(*sys);
+
+        lcm.HandleSubscriptions(10);
+        simulator.set_publish_every_time_step(true);
+        simulator.set_target_realtime_rate(1);
         simulator.get_mutable_context().SetAccuracy(1e-4);
-        simulator.AdvanceTo(1);
 
+        plant->set_state_vector(&simulator.get_mutable_context(),
+                                KCGFixedPointState());
+        simulator.Initialize();
+
+        simulator.AdvanceTo(10);
+//        state.set_x(0.0);
+//        state.set_y(0.0);
+//        state.set_z(1.0);
+//        state.set_roll(0.0);
+//        state.set_pitch(0.0);
+//        state.set_yaw(0.0);
+//        state.set_angle_stance_knee(0.0);
+//        state.set_angle_swing_knee(-0.5);
+//        state.set_angle_hip(-0.1);
+//        state.set_xdot(0.0);
+//        state.set_ydot(0.0);
+//        state.set_zdot(0.0);
+//        state.set_wr(0.0);
+//        state.set_wp(0.0);
+//        state.set_wy(0.0);
+//        state.set_angledot_stance_knee(0.0);
+//        state.set_angledot_swing_knee(0.0);
+//        state.set_angledot_hip(0.0);
         return 0;
     }
 } // kkk
