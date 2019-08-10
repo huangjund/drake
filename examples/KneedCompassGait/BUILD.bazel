@@ -23,6 +23,8 @@ drake_cc_vector_gen_library(
     visibility = ["//visibility:public"],
 )
 
+# library----------------------------------------------------
+
 drake_cc_library(
     name = "KneedCompassGait",
     srcs = ["KneedCompassGait.cpp"],
@@ -60,6 +62,25 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "KCG_common",
+    srcs = ["KCG_common.cpp"],
+    hdrs = ["KCG_common.h"],
+    data = ["KneedCompassGait.urdf"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":Kneed_compass_gait_vector_types",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/parsers",
+        "//common:find_resource",
+        "//math:autodiff",
+        "//math:geometric_transform",
+        "@drake//attic/multibody:rigid_body_tree_construction",
+        "@drake//attic/multibody/rigid_body_plant",
+        "@drake//systems/primitives:constant_vector_source",
+    ],
+)
+
+drake_cc_library(
     name = "KneedCompassGait_lcm",
     srcs = ["KneedCompassGait_lcm.cpp"],
     hdrs = ["KneedCompassGait_lcm.h"],
@@ -71,6 +92,7 @@ drake_cc_library(
     ],
 )
 
+# binary ---------------------------------------------------------
 drake_cc_binary(
     name = "firstsimulate",
     srcs = ["firstsimulate.cpp"],
@@ -88,32 +110,6 @@ drake_cc_binary(
         "//math:geometric_transform",
         "//systems/analysis:simulator",
         "//systems/framework:diagram_builder",
-        "@gflags",
-    ],
-)
-
-drake_cc_binary(
-    name = "rdSimulate",
-    srcs = ["rdSimulate.cpp"],
-    add_test_rule = 1,
-    data = ["KneedCompassGait.urdf"],
-    test_rule_args = ["--target_realtime_rate=0.0"],
-    deps = [
-        ":Kneed_compass_gait_vector_types",
-        "//attic/multibody:rigid_body_tree",
-        "//attic/multibody/parsers",
-        "//attic/multibody/rigid_body_plant:frame_visualizer",
-        "//common:find_resource",
-        "//lcm",
-        "//math:autodiff",
-        "//math:geometric_transform",
-        "//systems/analysis:simulator",
-        "//systems/framework:diagram_builder",
-        "@drake//attic/manipulation/util:sim_diagram_builder",
-        "@drake//attic/multibody:rigid_body_tree_construction",
-        "@drake//attic/multibody/rigid_body_plant",
-        "@drake//attic/multibody/rigid_body_plant:drake_visualizer",
-        "@drake//systems/primitives:constant_vector_source",
         "@gflags",
     ],
 )
@@ -139,6 +135,54 @@ drake_cc_binary(
         "@drake//attic/multibody/rigid_body_plant:drake_visualizer",
         "@drake//systems/primitives:constant_vector_source",
         "@gflags",
+    ],
+)
+
+drake_cc_binary(
+    name = "rdSimulate",
+    srcs = ["rdSimulate.cpp"],
+    add_test_rule = 1,
+    test_rule_args = ["--target_realtime_rate=0.0"],
+    deps = [
+        ":KCG_common",
+        ":Kneed_compass_gait_vector_types",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/parsers",
+        "//attic/multibody/rigid_body_plant:frame_visualizer",
+        "//common:find_resource",
+        "//lcm",
+        "//math:autodiff",
+        "//math:geometric_transform",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram_builder",
+        "@drake//attic/manipulation/util:sim_diagram_builder",
+        "@drake//attic/multibody:rigid_body_tree_construction",
+        "@drake//attic/multibody/rigid_body_plant",
+        "@drake//attic/multibody/rigid_body_plant:drake_visualizer",
+        "@drake//systems/primitives:constant_vector_source",
+        "@gflags",
+    ],
+)
+
+drake_cc_binary(
+    name = "qp_one_step",
+    srcs = ["qp_one_step.cpp"],
+    add_test_rule = 1,
+    test_rule_args = ["--target_realtime_rate=0.0"],
+    deps = [
+        ":KCG_common",
+        "//attic/manipulation/util:sim_diagram_builder",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody:rigid_body_tree_construction",
+        "//attic/multibody/joints",
+        "//attic/multibody/rigid_body_plant",
+        "//attic/multibody/rigid_body_plant:drake_visualizer",
+        "//common:find_resource",
+        "//lcm",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram_builder",
+        "//systems/framework:vector_system",
+        "//systems/primitives:constant_value_source",
     ],
 )
 
