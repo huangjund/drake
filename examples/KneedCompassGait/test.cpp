@@ -17,7 +17,7 @@
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/multibody/kinematics_cache.h"
-// #include "drake/multibody/plant/contact_jacobians.h"
+#include "drake/multibody/plant/contact_jacobians.h"
 
 
 namespace drake {
@@ -30,27 +30,59 @@ int DoMain() {
 
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(FindResourceOrThrow(
             "drake/examples/KneedCompassGait/KneedCompassGait.urdf"),
-                    multibody::joints::kQuaternion, tree);
+                    multibody::joints::kRollPitchYaw, tree);
 
     using std::cout;
     using std::cin;
     using std::endl;
 //  TODO(Junda): this part is doKinematics, but have problem
 //  to call for doKinematics, because of the shard.
-    AutoDiffXd xd(1);
-    cout << "xd : " << xd << endl;
 
+    Vector3<double> toe_collision_bias(0, 0, -0.5);
     drake::WrenchVector<double> external_wrench;
-    Eigen::VectorXd q_in(10), qd_in(9);
-    q_in << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
-    qd_in << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+    VectorX<double> q_in(9), qd_in(9);
+    q_in << 0, 0, 1, 1, 0, 0, 0, 0, 0;
+    qd_in << 0, 1, 0, 0, 0, 0, 0, 0, 0;
     auto kinematics = tree->doKinematics(q_in, qd_in);
-    cout << tree->FindBodyIndex("hip");
-//    auto kinematics = tree->doKinematics(q_in, qd_in, true);
-//    auto kinematics = tree->CreateKinematicsCache();
-//    kinematics.initialize(q_in, qd_in);
 
+    VectorX <double> q(4);
+    VectorX <double> qd(5);
+    q[1] = qd[1];
+
+    Eigen::MatrixXd Jp;
+    Eigen::VectorXi idxA, idxB;
+    Eigen::Matrix3d xA, xB;
+    tree->computeContactJacobians(kinematics, idxA, idxB, xA, xB, Jp);
+
+    Eigen::Matrix3Xd B(3, 4);
+    cout << B << endl;
+//    Eigen::Matrix<double, 3, 1> collision;
+//    collision << 0, //0,
+//                0, //1,
+//                1; //0;
 //
+//    Eigen::MatrixXd ll;
+//    ll = tree->transformPointsJacobian(kinematics, collision, tree->FindBodyIndex("left_lower_leg"), 1, 0);
+//    cout << ll << endl;
+   // cout << tree->positionConstraintsJacobian(kinematics) << endl;
+
+//    auto lb = 5*Eigen::VectorXf::Ones(3);
+//    auto ub = 1e6*Eigen::VectorXf::Ones(3);
+//    cout << lb << ub << endl;
+
+//    Eigen::Matrix<double, 9, 1> w_qdd;
+//    w_qdd << 10, 10, 10, 1000, 1000, 1000, 1, 1, 1;
+//    auto weight = Eigen::MatrixXd(w_qdd.asDiagonal());
+//    Eigen::Matrix3d I1;
+//    I1.setIdentity();
+//    Eigen::Matrix<double, 6, 3> I2;
+//    Eigen::Matrix<double, 9, 3> I;
+//    I2.setZero();
+//    I << I2, I1;
+//    cout << I << endl;
+//    auto toe_l = tree->transformPoints(kinematics, toe_collision_bias, tree->FindBodyIndex("left_lower_leg"), 0);
+//    cout << toe_l << endl;
+
 //    cout << kinematics.getQ() << endl;
 //    cout << tree->transformQDotToVelocity(
 //            kinematics, qd_in) << endl;
@@ -152,11 +184,11 @@ int DoMain() {
 //            rigidbody, drake::WrenchVector<double>> eWrench;
 
 
-    auto num = tree->get_num_positions() + tree->get_num_velocities();
-    for (int i = 0; i < num; ++i) {
-            cout << tree->getStateName(i) << endl;
-           // cout << tree->get_velocity_name(i) << endl;
-    }
+//    auto num = tree->get_num_positions() + tree->get_num_velocities();
+//    for (int i = 0; i < num; ++i) {
+//            cout << tree->getStateName(i) << endl;
+//           // cout << tree->get_velocity_name(i) << endl;
+//    }
 
 //    Eigen::Matrix<double, 6, 9> M;
 //    for (int i = 0; i < 54; ++i) {

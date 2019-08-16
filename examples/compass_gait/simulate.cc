@@ -34,19 +34,24 @@ int DoMain() {
   parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
       FindResourceOrThrow("drake/examples/compass_gait/CompassGait.urdf"),
       multibody::joints::kRollPitchYaw, tree.get());
-
+  
   {  // Add ramp
     // TODO(russt): Consider moving/reusing this block (useful for all passive
     // walkers).
-    const double box_depth = 10.0;
-    DrakeShapes::Box geom(Eigen::Vector3d(100, 1, box_depth));
+   // const double box_depth = 10.0;
+    std::string kFilePath;
+    kFilePath = "drake/examples/compass_gait/simulator1.obj";
+    DrakeShapes::Mesh geom("scenario", drake::FindResourceOrThrow(kFilePath));
 
     // In the following use W for world frame and B for box frame.
+
     Eigen::Isometry3d X_WB = Eigen::Isometry3d::Identity();
-    X_WB.translation() << 0, 0, -box_depth / 2;  // Top of the box is at z = 0.
-    double ramp_pitch = CompassGaitParams<double>().slope();
-    X_WB.rotate(
-        math::RotationMatrix<double>::MakeYRotation(ramp_pitch).matrix());
+    Eigen::AngleAxisd rotation_base(M_PI/2, Vector3<double>(1, 0, 0));
+    X_WB.rotate(rotation_base);
+    X_WB.translation() << -5, 0, -1.2; // -box_depth / 2;  Top of the box is at z = 0.
+   // double ramp_pitch = CompassGaitParams<double>().slope();
+   // X_WB.rotate(
+   //    math::RotationMatrix<double>::MakeYRotation(ramp_pitch).matrix());
 
     // Defines a color called "desert sand" according to htmlcsscolor.com.
     Eigen::Vector4d color(0.9297, 0.7930, 0.6758, 1);
@@ -81,7 +86,7 @@ int DoMain() {
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.get_mutable_context().SetAccuracy(1e-4);
  // std::cout << "before simulate" << std::endl;
-  simulator.AdvanceTo(50);
+  simulator.AdvanceTo(5);
 
   return 0;
 }

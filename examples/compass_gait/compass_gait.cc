@@ -31,13 +31,13 @@ CompassGait<T>::CompassGait()
       "minimal_state", CompassGaitContinuousState<T>(),
       &CompassGait::MinimalStateOut, {this->all_state_ticket()});
 
-  // The floating-base (RPY) state of the system (useful for visualization).
-  this->DeclareVectorOutputPort(
-      "floating_base_state", systems::BasicVector<T>(14),
-      &CompassGait::FloatingBaseStateOut,
-      {this->all_state_ticket(), this->all_parameters_ticket()});
+    // The floating-base (RPY) state of the system (useful for visualization).
+    this->DeclareVectorOutputPort(
+            "floating_base_state", systems::BasicVector<T>(14),
+            &CompassGait::FloatingBaseStateOut,
+            {this->all_state_ticket(), this->all_parameters_ticket()});
 
-  this->DeclareNumericParameter(CompassGaitParams<T>());
+    this->DeclareNumericParameter(CompassGaitParams<T>());
 
   // Create the witness function.
   foot_collision_ = this->MakeWitnessFunction(
@@ -318,8 +318,6 @@ void CompassGait<T>::DoCalcTimeDerivatives(
   const Vector2<T> B(-1, 1);
   const Vector1<T> u = this->get_input_port(0).Eval(context);
 
-  auto tree = getCompassGaitTree();
-
 
   Vector4<T> xdot;
   // clang-format off
@@ -329,15 +327,6 @@ void CompassGait<T>::DoCalcTimeDerivatives(
   // clang-format on
   derivatives->SetFromVector(xdot);
  //   std::cout << "TimeDerivatives 2 excuted" << std::endl;
-}
-
-template <typename T>
-std::unique_ptr<RigidBodyTree<T>> CompassGait<T>::getCompassGaitTree() const {
-    auto tree = std::make_unique<RigidBodyTree<T>>();
-    parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
-            FindResourceOrThrow("drake/examples/compass_gait/CompassGait.urdf"),
-            multibody::joints::kRollPitchYaw, tree.get());
-    return tree;
 }
 
 template <typename T>

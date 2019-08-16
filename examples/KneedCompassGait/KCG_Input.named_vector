@@ -1,0 +1,22 @@
+namespace: "drake::examples::KneedCompassGait"
+
+element {
+    name: "ltau"
+    doc: "Torque at the left knee"
+    doc_units: "Nm"
+    default_value: "0.0"
+}
+
+element {
+    name: "htau"
+    doc: "Torque at the hip"
+    doc_units: "Nm"
+    default_value: "0.0"
+}
+
+element {
+    name: "rtau"
+    doc: "Torque at the right knee"
+    doc_units: "Nm"
+    default_value: "0.0"
+}

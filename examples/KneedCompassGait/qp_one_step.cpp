@@ -5,6 +5,7 @@
 #include <string>
 
 #include "drake/examples/KneedCompassGait/KCG_common.h"
+#include "drake/examples/KneedCompassGait/qpController.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/multibody/rigid_body_tree_construction.h"
@@ -18,6 +19,8 @@
 #include "drake/systems/analysis/simulator.h"
 #include "drake/manipulation/util/sim_diagram_builder.h"
 
+
+
 namespace drake {
 namespace examples {
 namespace qpControl {
@@ -28,6 +31,8 @@ namespace qpControl {
         using systems::Simulator;
         using systems::ConstantVectorSource;
         using std::move;
+        using std::cout;
+        using std::endl;
 
         // get rigidbodytree pointer
         auto tree = std::make_unique<RigidBodyTree<double>>();
@@ -38,6 +43,11 @@ namespace qpControl {
         SimDiagramBuilder<double> builder;
         DiagramBuilder<double> base_builder;
 
+        // construct controller
+        VectorX<double> q_des(NQ);
+        q_des << -0.6, 0, 0, 0, -0.2, 0,
+                0, 0.4, 0;
+
         // instantiate a rigidbodyplant from the rigidbodytree
         auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm);
         auto& kcg = *base_builder.AddSystem<RigidBodyPlant<double>>(move(tree));
@@ -45,16 +55,20 @@ namespace qpControl {
 
         // connect kcg with visulizer
         base_builder.Connect(kcg.get_output_port(0),visulizer->get_input_port(0));
-
         // create zero source and connect it to kcg
-        VectorX<double> constant_vector(kcg.get_input_port(0).size());
-        constant_vector.setZero();
-        auto constant0source = base_builder.AddSystem<
-                ConstantVectorSource<double>>(constant_vector);
-        constant0source->set_name("zero input");
-        base_builder.Connect(constant0source->get_output_port(),
+//        VectorX<double> constant_vector(kcg.get_input_port(0).size());
+//        constant_vector.setZero();
+//        constant_vector[1] = 10;
+//        auto constant0source = base_builder.AddSystem<
+//                ConstantVectorSource<double>>(constant_vector);
+//        constant0source->set_name("zero input");
+//        base_builder.Connect(constant0source->get_output_port(),
+//                kcg.get_input_port(0));
+        auto qpcontroller = base_builder.AddSystem<qpController>(q_des);
+        base_builder.Connect(qpcontroller->get_output_port(0),
                 kcg.get_input_port(0));
-
+        base_builder.Connect(kcg.get_output_port(0),
+                qpcontroller->get_input_port(0));
 
         // build the diagram and set the simulator
         auto diagram = base_builder.Build();

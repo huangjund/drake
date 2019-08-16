@@ -47,7 +47,10 @@ drake_cc_binary(
     name = "simulate",
     srcs = ["simulate.cc"],
     add_test_rule = 1,
-    data = ["CompassGait.urdf"],
+    data = [
+        "CompassGait.urdf",
+        "simulator1.obj",
+    ],
     test_rule_args = ["--target_realtime_rate=0.0"],
     deps = [
         ":compass_gait",

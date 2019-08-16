@@ -56,7 +56,7 @@ namespace kkk {
         VectorX<double> ret(18);
         ret << 0, 0, 1.0, 0, 0, 0,
                 0, -0.5, -0.1,
-                0, 0, 0, 0, 0, 0,
+                -0.2, 0, 0, 0, 0, 0,
                 0, 0, 0;
         return ret;
     }

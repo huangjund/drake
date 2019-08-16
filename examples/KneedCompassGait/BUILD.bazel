@@ -17,6 +17,7 @@ package(default_visibility = ["//visibility:private"])
 drake_cc_vector_gen_library(
     name = "Kneed_compass_gait_vector_types",
     srcs = [
+        "KCG_Input.named_vector",
         "KneedCompassGait_ContinuousState.named_vector",
         "KneedCompassGait_Params.named_vector",
     ],
@@ -77,6 +78,28 @@ drake_cc_library(
         "@drake//attic/multibody:rigid_body_tree_construction",
         "@drake//attic/multibody/rigid_body_plant",
         "@drake//systems/primitives:constant_vector_source",
+    ],
+)
+
+drake_cc_library(
+    name = "qpController",
+    srcs = ["qpController.cpp"],
+    hdrs = ["qpController.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":KCG_common",
+        ":Kneed_compass_gait_vector_types",
+        "//attic/multibody:rigid_body_tree",
+        "//lcm",
+        "//solvers:constraint",
+        "//solvers:gurobi_qp",
+        "//solvers:gurobi_solver",
+        "//solvers:mathematical_program",
+        "//solvers:osqp_solver",
+        "//solvers:solve",
+        "//systems/framework:discrete_values",
+        "//systems/framework:leaf_system",
+        "//systems/framework:vector_system",
     ],
 )
 
@@ -171,6 +194,7 @@ drake_cc_binary(
     test_rule_args = ["--target_realtime_rate=0.0"],
     deps = [
         ":KCG_common",
+        ":qpController",
         "//attic/manipulation/util:sim_diagram_builder",
         "//attic/multibody:rigid_body_tree",
         "//attic/multibody:rigid_body_tree_construction",
@@ -198,8 +222,22 @@ drake_cc_binary(
         "//common:find_resource",
         "//lcm",
         "//math:geometric_transform",
+        "//multibody/plant:contact_jacobians",
         "//systems/analysis:simulator",
         "//systems/framework:diagram_builder",
+    ],
+)
+
+drake_cc_binary(
+    name = "qptest",
+    srcs = ["qptest.cpp"],
+    deps = [
+        "//attic/multibody:rigid_body_tree",
+        "//solvers:gurobi_solver",
+        "//solvers:mathematical_program",
+        "//solvers:osqp_solver",
+        "//solvers:solve",
+        "//systems/framework:vector_system",
     ],
 )
 

@@ -17,11 +17,9 @@ namespace {
 class SimpleContinuousTimeSystem : public LeafSystem<double> {
  public:
   SimpleContinuousTimeSystem() {
-      std::cout << "construct executed" << std::endl;
     DeclareVectorOutputPort("y", BasicVector<double>(1),
                             &SimpleContinuousTimeSystem::CopyStateOut);
     DeclareContinuousState(1);  // One state variable.
-    std::cout << "construct executed" << std::endl;
   }
 
  private:
@@ -30,9 +28,9 @@ class SimpleContinuousTimeSystem : public LeafSystem<double> {
       const Context<double>& context,
       ContinuousState<double>* derivatives) const override {
     const double x = context.get_continuous_state()[0];
+    std::cout << "stat:\n" << context.get_continuous_state().CopyToVector() << std::endl;
     const double xdot = -x + std::pow(x, 3.0);
     (*derivatives)[0] = xdot;
-      std::cout << "TimeDerivatives executed" << std::endl;
   }
 
   // y = x
@@ -58,10 +56,10 @@ int main() {
   state[0] = 0.9;
 
   // Simulate for 10 seconds.
-  simulator.AdvanceTo(1);
+  simulator.AdvanceTo(5);
   std::cout << simulator.get_context().get_continuous_state()[0] << std::endl;
   // Make sure the simulation converges to the stable fixed point at x=0.
-  DRAKE_DEMAND(state[0] < 1.0e-4);
+  DRAKE_DEMAND(state[0] < 1.0e-1);
 
   // TODO(russt): make a plot of the resulting trajectory.
 

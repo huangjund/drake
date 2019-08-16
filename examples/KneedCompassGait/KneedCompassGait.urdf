@@ -207,29 +207,30 @@
         <parent link="hip"/>
         <child link="right_upper_leg"/>
         <axis xyz="0 1 0"/>
+        <limit effort="200"/>
     </joint>
     <joint name="left_knee_pin" type="revolute">
         <parent link="left_upper_leg"/>
         <child link="left_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit upper = "0" lower="-3.14"/>
+        <limit upper = "0" lower="-3.14" effort="100"/>
     </joint>
     <joint name="right_knee_pin" type="revolute">
         <parent link="right_upper_leg"/>
         <child link="right_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit upper="0" lower="-3.14"/>
+        <limit upper="0" lower="-3.14" effort="100"/>
     </joint>
-    <transmission name="hip_trans" type="SimpleTransmission">
-        <actuator name="hip_torque"/>
-        <joint name="hip_pin"/>
-        <mechanicalReduction>1</mechanicalReduction>
-    </transmission>
     <transmission name="left_knee_trans" type="SimpleTransmission">
         <actuator name="left_knee_torque"/>
         <joint name="left_knee_pin"/>
+        <mechanicalReduction>1</mechanicalReduction>
+    </transmission>
+    <transmission name="hip_trans" type="SimpleTransmission">
+        <actuator name="hip_torque"/>
+        <joint name="hip_pin"/>
         <mechanicalReduction>1</mechanicalReduction>
     </transmission>
     <transmission name="right_knee_trans" type="SimpleTransmission">
