@@ -34,21 +34,28 @@ int DoMain() {
   parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
       FindResourceOrThrow("drake/examples/compass_gait/CompassGait.urdf"),
       multibody::joints::kRollPitchYaw, tree.get());
-  
+    parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+            FindResourceOrThrow("drake/examples/compass_gait/quadrotor.urdf"),
+            multibody::joints::kFixed, tree.get());
+    parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+            FindResourceOrThrow("drake/examples/compass_gait/cassie.urdf"),
+            multibody::joints::kFixed, tree.get());
+
+
   {  // Add ramp
     // TODO(russt): Consider moving/reusing this block (useful for all passive
     // walkers).
    // const double box_depth = 10.0;
     std::string kFilePath;
     kFilePath = "drake/examples/compass_gait/simulator1.obj";
-    DrakeShapes::Mesh geom("scenario", drake::FindResourceOrThrow(kFilePath));
+    DrakeShapes::Mesh geom("scenario1", drake::FindResourceOrThrow(kFilePath));
 
     // In the following use W for world frame and B for box frame.
 
     Eigen::Isometry3d X_WB = Eigen::Isometry3d::Identity();
     Eigen::AngleAxisd rotation_base(M_PI/2, Vector3<double>(1, 0, 0));
     X_WB.rotate(rotation_base);
-    X_WB.translation() << -5, 0, -1.2; // -box_depth / 2;  Top of the box is at z = 0.
+    X_WB.translation() << 0, 0, 0; // -box_depth / 2;  Top of the box is at z = 0.
    // double ramp_pitch = CompassGaitParams<double>().slope();
    // X_WB.rotate(
    //    math::RotationMatrix<double>::MakeYRotation(ramp_pitch).matrix());
