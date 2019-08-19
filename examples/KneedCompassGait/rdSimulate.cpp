@@ -23,6 +23,10 @@
 #include "drake/systems/framework/witness_function.h"
 #include "drake/systems/primitives/constant_vector_source.h"
 
+#define NQ 11
+#define NV 11
+#define NU 5
+#define STATE 22
 
 namespace drake {
 namespace examples {
@@ -32,7 +36,7 @@ namespace kkk {
         kkkcg(){
             // Four Continuous State
             this->DeclareContinuousState(
-                    KneedCompassGait::KneedcompassgaitContinuousstate<double>(), 9, 9, 0);
+                    KneedCompassGait::KneedcompassgaitContinuousstate<double>(), NQ, NV, 0);
 
             // Discrete state for left toe distance along the plane.
             this->DeclareDiscreteState(1);
@@ -43,7 +47,7 @@ namespace kkk {
             this->DeclareAbstractState(AbstractValue::Make(left_stance));
 
             // The floating-base state of the system(useful for visual)
-            this->DeclareVectorOutputPort(systems::BasicVector<double>(18),
+            this->DeclareVectorOutputPort(systems::BasicVector<double>(STATE),
                                           &kkkcg::FloatingBaseStateOut);
 
             // Natural property
@@ -57,14 +61,6 @@ namespace kkk {
 //                    &kkkcg::CollisionDynamics
 //                    );
 
-            H << 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 1, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 0, 0, 0, 1, 0, 0,
-                 0, 0, 0, 0, 0, 0, 0, 0, 1,
-                 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                 0, 0, 0, 0, 0, 0, 0, 1, 0;
-
-            Ht = H.transpose();
         }
 
         const KneedCompassGait::KneedcompassgaitParams<double>& get_parameters(
@@ -109,33 +105,43 @@ namespace kkk {
             output->SetAtIndex(4, cs.pitch());
             output->SetAtIndex(5, cs.yaw());
 
-            output->SetAtIndex(9, cs.xdot());
-            output->SetAtIndex(10, cs.ydot());
-            output->SetAtIndex(11, cs.zdot());
-            output->SetAtIndex(12, cs.wr());
-            output->SetAtIndex(13, cs.wp());
-            output->SetAtIndex(14, cs.wy());
+            output->SetAtIndex(11, cs.xdot());
+            output->SetAtIndex(12, cs.ydot());
+            output->SetAtIndex(13, cs.zdot());
+            output->SetAtIndex(14, cs.wr());
+            output->SetAtIndex(15, cs.wp());
+            output->SetAtIndex(16, cs.wy());
 
             const double left = left_stance ?
                            cs.angle_stance_knee() : cs.angle_swing_knee();
             const double right = left_stance ?
                         cs.angle_swing_knee() : cs.angle_stance_knee();
-            const double hip = left_stance ? cs.angle_hip() : -cs.angle_hip();
+            const double hiproll = left_stance ? cs.angle_hiprow() : -cs.angle_hiprow();
+            const double hippin = left_stance ? cs.angle_hippin() : -cs.angle_hippin();
+            const double hipyaw = left_stance ? cs.angle_hipyaw() : -cs.angle_hipyaw();
 
             output->SetAtIndex(6, left);
-            output->SetAtIndex(7, hip);
-            output->SetAtIndex(8, right);
+            output->SetAtIndex(7, hiproll);
+            output->SetAtIndex(8, hippin);
+            output->SetAtIndex(9, hipyaw);
+            output->SetAtIndex(10, right);
 
             const double leftdot = left_stance ?
                     cs.angledot_stance_knee() : cs.angledot_swing_knee();
             const double rightdot = left_stance ?
                     cs.angledot_swing_knee() : cs.angledot_stance_knee();
-            const double hipdot = left_stance ?
-                    cs.angledot_hip() : -cs.angledot_hip();
+            const double hipdotroll = left_stance ?
+                    cs.angledot_hiprow() : -cs.angledot_hiprow();
+            const double hipdotpin = left_stance ?
+                    cs.angledot_hippin() : -cs.angledot_hippin();
+            const double hipdotyaw = left_stance ?
+                    cs.angledot_hipyaw() : -cs.angledot_hipyaw();
 
-            output->SetAtIndex(15, leftdot);
-            output->SetAtIndex(16, hipdot);
-            output->SetAtIndex(17, rightdot);
+            output->SetAtIndex(17, leftdot);
+            output->SetAtIndex(18, hipdotroll);
+            output->SetAtIndex(19, hipdotpin);
+            output->SetAtIndex(20, hipdotyaw);
+            output->SetAtIndex(21, rightdot);
         }
 
         template <typename Scalar>
@@ -155,24 +161,22 @@ namespace kkk {
         }
 
     private:
-        Eigen::Matrix<double, 6, 9> H;
-        Eigen::Matrix<double, 9, 6> Ht;
         void DoCalcTimeDerivatives(const systems::Context<double>& context,
                 systems::ContinuousState<double>* derivatives) const override{
             auto tree = std::make_unique<RigidBodyTree<double>>();
             tree = getkkkcgTree<double>();
 
-            Eigen::VectorXd nq(9), nv(9) ,temp(18);
+            Eigen::VectorXd nq(NQ), nv(NV) ,temp(STATE);
             temp = context.get_continuous_state().CopyToVector();
-            nq << temp.segment(0, 8);
-            nv << temp.segment(9, 17);
+            nq << temp.segment(0, NQ-1);
+            nv << temp.segment(NQ, STATE-1);
             auto kinsol = tree->doKinematics(nq, nv);
 
             auto M = tree->massMatrix(kinsol);
             auto C_bias = tree->dynamicsBiasTerm(kinsol, {});
 
 
-            VectorX<double> xdot(18);
+            VectorX<double> xdot(22);
             xdot << nv, -M.inverse()*C_bias;
             std::cout << M << std::endl;
             derivatives->SetFromVector(xdot);
@@ -186,10 +190,10 @@ namespace kkk {
             auto tree = std::make_unique<RigidBodyTree<double>>();
             tree = getkkkcgTree<double>();
 
-            Eigen::VectorXd nq(9), nv(9) ,temp(18);
+            Eigen::VectorXd nq(NQ), nv(NV) ,temp(STATE);
             temp = context.get_continuous_state().CopyToVector();
-            nq << temp.segment(0, 8);
-            nv << temp.segment(9, 17);
+            nq << temp.segment(0, NQ-1);
+            nv << temp.segment(NQ, STATE-1);
             auto kinsol = tree->doKinematics(nq, nv);
 
             VectorX<double> T(1);
@@ -241,7 +245,7 @@ namespace kkk {
 
         VectorX<double> constant_vector(plant->get_input_port(0).size());
         constant_vector.setZero();
-        constant_vector[0] = 0.2;
+       // constant_vector[0] = 10;
         auto constant_zero_source =
                 base_builder->AddSystem<ConstantVectorSource<double>>(constant_vector);
         constant_zero_source->set_name("zero input");
@@ -254,7 +258,7 @@ namespace kkk {
 
         Simulator<double> simulator(*sys);
 
-        lcm.HandleSubscriptions(10);
+      //  lcm.HandleSubscriptions(10);
         simulator.set_publish_every_time_step(true);
         simulator.set_target_realtime_rate(0.1);
         simulator.get_mutable_context().SetAccuracy(1e-4);

@@ -38,12 +38,12 @@ int DoMain() {
 //  TODO(Junda): this part is doKinematics, but have problem
 //  to call for doKinematics, because of the shard.
 
-    Vector3<double> toe_collision_bias(0, 0, -0.5);
-    drake::WrenchVector<double> external_wrench;
-    VectorX<double> q_in(9), qd_in(9);
-    q_in << 0, 0, 1, 1, 0, 0, 0, 0, 0;
-    qd_in << 0, 1, 0, 0, 0, 0, 0, 0, 0;
-    auto kinematics = tree->doKinematics(q_in, qd_in);
+//    Vector3<double> toe_collision_bias(0, 0, -0.5);
+//    drake::WrenchVector<double> external_wrench;
+//    VectorX<double> q_in(9), qd_in(9);
+//    q_in << 0, 0, 1, 1, 0, 0, 0, 0, 0;
+//    qd_in << 0, 1, 0, 0, 0, 0, 0, 0, 0;
+//    auto kinematics = tree->doKinematics(q_in, qd_in);
 
     VectorX <double> q(4);
     VectorX <double> qd(5);
@@ -52,10 +52,14 @@ int DoMain() {
     Eigen::MatrixXd Jp;
     Eigen::VectorXi idxA, idxB;
     Eigen::Matrix3d xA, xB;
-    tree->computeContactJacobians(kinematics, idxA, idxB, xA, xB, Jp);
+  //  tree->computeContactJacobians(kinematics, idxA, idxB, xA, xB, Jp);
 
-    Eigen::Matrix3Xd B(3, 4);
-    cout << B << endl;
+    auto kinsol = tree->CreateKinematicsCache();
+    tree->doKinematics(kinsol);
+    for (int i = 0; i < 22; ++i) {
+        cout << tree->getStateName(i) << endl;
+    }
+
 //    Eigen::Matrix<double, 3, 1> collision;
 //    collision << 0, //0,
 //                0, //1,

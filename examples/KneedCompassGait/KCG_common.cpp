@@ -53,17 +53,17 @@ namespace kkk {
     template void setDefaultContactParams<double>(systems::RigidBodyPlant<double>&);
 
     VectorX<double> KCGFixedPointState() {
-        VectorX<double> ret(18);
+        VectorX<double> ret(22);
         ret << 0, 0, 1.0, 0, 0, 0,
-                0, -0.5, -0.1,
-                -0.2, 0, 0, 0, 0, 0,
-                0, 0, 0;
+                0.1, 0.5, 0, 0, -0.3,
+                0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0;
         return ret;
     }
 
     VectorX<double> KCGFixedPointTorque(){
-        VectorX<double> ff_torque(3);
-        ff_torque << 0, 0, 0;
+        VectorX<double> ff_torque(5);
+        ff_torque << 0, 0, 0, 0, 0;
         return ff_torque;
     }
 

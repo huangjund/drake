@@ -1,6 +1,30 @@
 <?xml version="1.0" ?>
 
 <robot  name="KneedCompassGait">
+    <link name="base_link"/>
+    <joint name="base" type="fixed">
+        <child link="hip"/>
+        <parent link="base_link"/>
+    </joint>
+<!--    <link name="mass">-->
+<!--        <inertial>-->
+<!--            <mass value="2"/>-->
+<!--            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>-->
+<!--        </inertial>-->
+<!--        <visual>-->
+<!--            <geometry>-->
+<!--                <sphere radius="0.05"/>-->
+<!--            </geometry>-->
+<!--            <material name="green">-->
+<!--                <color rgba="0 1 0 1"/>-->
+<!--            </material>-->
+<!--        </visual>-->
+<!--    </link>-->
+<!--    <joint name="masstest" type="fixed">-->
+<!--        <child link="mass"/>-->
+<!--        <parent link="hip" />-->
+<!--        <origin xyz="0 0.1 0"/>-->
+<!--    </joint>-->
     <link name="hip">
         <inertial>
             <mass value="10"/>
@@ -15,6 +39,8 @@
             </material>
         </visual>
     </link>
+    <link name="hip2pin"/>
+    <link name="pin2yaw"/>
     <link name="left_upper_leg">
         <visual>
             <origin xyz="0 0 -0.25"/>
@@ -71,21 +97,21 @@
                 <sphere radius="0"/>
             </geometry>
         </collision>
-        <visual>
-            <origin xyz="-0.01 0 -0.5" />
-            <geometry>
-                <sphere radius="0.01"/>
-            </geometry>
-            <material name="red">
-                <color rgba="1 0 0 1"/>
-            </material>
-        </visual>
-        <collision>
-            <origin xyz="-0.01 0 -0.5"/>
-            <geometry>
-                <sphere radius="0"/>
-            </geometry>
-        </collision>
+<!--        <visual>-->
+<!--            <origin xyz="-0.01 0 -0.5" />-->
+<!--            <geometry>-->
+<!--                <sphere radius="0.01"/>-->
+<!--            </geometry>-->
+<!--            <material name="red">-->
+<!--                <color rgba="1 0 0 1"/>-->
+<!--            </material>-->
+<!--        </visual>-->
+<!--        <collision>-->
+<!--            <origin xyz="-0.01 0 -0.5"/>-->
+<!--            <geometry>-->
+<!--                <sphere radius="0"/>-->
+<!--            </geometry>-->
+<!--        </collision>-->
     </link>
     <link name="left_lower_leg_mass">
         <visual>
@@ -163,21 +189,21 @@
                 <sphere radius="0"/>
             </geometry>
         </collision>
-        <visual>
-            <origin xyz="-0.01 0 -0.5" />
-            <geometry>
-                <sphere radius="0.01"/>
-            </geometry>
-            <material name="blue">
-                <color rgba="0 0 1 1"/>
-            </material>
-        </visual>
-        <collision>
-            <origin xyz="-0.01 0 -0.5"/>
-            <geometry>
-                <sphere radius="0"/>
-            </geometry>
-        </collision>
+<!--        <visual>-->
+<!--            <origin xyz="-0.01 0 -0.5" />-->
+<!--            <geometry>-->
+<!--                <sphere radius="0.01"/>-->
+<!--            </geometry>-->
+<!--            <material name="blue">-->
+<!--                <color rgba="0 0 1 1"/>-->
+<!--            </material>-->
+<!--        </visual>-->
+<!--        <collision>-->
+<!--            <origin xyz="-0.01 0 -0.5"/>-->
+<!--            <geometry>-->
+<!--                <sphere radius="0"/>-->
+<!--            </geometry>-->
+<!--        </collision>-->
     </link>
     <link name="right_lower_leg_mass">
         <visual>
@@ -203,34 +229,56 @@
         <parent link="hip"/>
         <child link="left_upper_leg"/>
     </joint>
-    <joint name="hip_pin" type="continuous">
+    <joint name="hip_roll" type="continuous">
         <parent link="hip"/>
-        <child link="right_upper_leg"/>
+        <child link="hip2pin"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="200" velocity = "100"/>
+    </joint>
+    <joint name="hip_pin" type="continuous">
+        <parent link="hip2pin"/>
+        <child link="pin2yaw"/>
         <axis xyz="0 1 0"/>
-        <limit effort="200"/>
+        <limit effort="200" velocity="100"/>
     </joint>
     <joint name="left_knee_pin" type="revolute">
         <parent link="left_upper_leg"/>
         <child link="left_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit upper = "0" lower="-3.14" effort="100"/>
+        <limit upper = "0" lower="-3.14" effort="100" velocity="100"/>
+    </joint>
+    <joint name="hip_yaw" type="continuous">
+        <parent link="pin2yaw"/>
+        <child link="right_upper_leg"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="200" velocity="100"/>
     </joint>
     <joint name="right_knee_pin" type="revolute">
         <parent link="right_upper_leg"/>
         <child link="right_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit upper="0" lower="-3.14" effort="100"/>
+        <limit upper="0" lower="-3.14" effort="100" velocity="100"/>
     </joint>
+    <transmission name="hip_1trans" type="SimpleTransmission">
+        <actuator name="hip_roll_torque"/>
+        <joint name="hip_roll"/>
+        <mechanicalReduction>1</mechanicalReduction>
+    </transmission>
+    <transmission name="hip_2trans" type="SimpleTransmission">
+        <actuator name="hip_pin_torque"/>
+        <joint name="hip_pin"/>
+        <mechanicalReduction>1</mechanicalReduction>
+    </transmission>
     <transmission name="left_knee_trans" type="SimpleTransmission">
         <actuator name="left_knee_torque"/>
         <joint name="left_knee_pin"/>
         <mechanicalReduction>1</mechanicalReduction>
     </transmission>
-    <transmission name="hip_trans" type="SimpleTransmission">
-        <actuator name="hip_torque"/>
-        <joint name="hip_pin"/>
+    <transmission name="hip_3trans" type="SimpleTransmission">
+        <actuator name="hip_yaw_torque"/>
+        <joint name="hip_yaw"/>
         <mechanicalReduction>1</mechanicalReduction>
     </transmission>
     <transmission name="right_knee_trans" type="SimpleTransmission">

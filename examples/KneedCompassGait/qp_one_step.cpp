@@ -46,10 +46,10 @@ namespace qpControl {
         // construct controller
         VectorX<double> q_des(NQ);
         q_des << -0.6, 0, 0, 0, -0.2, 0,
-                0, 0.4, 0;
+                0, 0, 0, 0.4, 0;
 
         // instantiate a rigidbodyplant from the rigidbodytree
-        auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm);
+        auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm, true);
         auto& kcg = *base_builder.AddSystem<RigidBodyPlant<double>>(move(tree));
         examples::kkk::setDefaultContactParams(kcg);
 
@@ -81,6 +81,8 @@ namespace qpControl {
 
         simulator.Initialize();
         simulator.AdvanceTo(1);
+        while(true)
+            visulizer->ReplayCachedSimulation();
         return 0;
     }
 }

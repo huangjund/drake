@@ -37,6 +37,18 @@ int DoMain() {
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
             FindResourceOrThrow("drake/examples/compass_gait/quadrotor.urdf"),
             multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/quadrotor1.urdf"),
+                multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/quadrotor2.urdf"),
+                multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/quadrotor3.urdf"),
+                multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/quadrotor4.urdf"),
+                multibody::joints::kFixed, tree.get());
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
             FindResourceOrThrow("drake/examples/compass_gait/cassie.urdf"),
             multibody::joints::kFixed, tree.get());
@@ -49,22 +61,49 @@ int DoMain() {
     std::string kFilePath;
     kFilePath = "drake/examples/compass_gait/simulator1.obj";
     DrakeShapes::Mesh geom("scenario1", drake::FindResourceOrThrow(kFilePath));
+      kFilePath = "drake/examples/compass_gait/table.obj";
+      DrakeShapes::Mesh geom1("scenario2", drake::FindResourceOrThrow(kFilePath));
+      kFilePath = "drake/examples/compass_gait/table1.obj";
+      DrakeShapes::Mesh geom2("scenario3", drake::FindResourceOrThrow(kFilePath));
+      kFilePath = "drake/examples/compass_gait/table2.obj";
+      DrakeShapes::Mesh geom3("scenario4", drake::FindResourceOrThrow(kFilePath));
+
 
     // In the following use W for world frame and B for box frame.
 
     Eigen::Isometry3d X_WB = Eigen::Isometry3d::Identity();
     Eigen::AngleAxisd rotation_base(M_PI/2, Vector3<double>(1, 0, 0));
     X_WB.rotate(rotation_base);
-    X_WB.translation() << 0, 0, 0; // -box_depth / 2;  Top of the box is at z = 0.
+    X_WB.translation() << -1, -5, 1; // -box_depth / 2;  Top of the box is at z = 0.
+
+      Eigen::Isometry3d X_WB1 = Eigen::Isometry3d::Identity();
+      Eigen::AngleAxisd rotation_base1(M_PI/2, Vector3<double>(1, 0, 0));
+      X_WB1.rotate(rotation_base1);
+      X_WB1.translation() << 12, -7.2, 2.3; // -box_depth / 2;  Top of the box is at z = 0.
+
+      Eigen::Isometry3d X_WB2 = Eigen::Isometry3d::Identity();
+      Eigen::AngleAxisd rotation_base2(M_PI/2, Vector3<double>(1, 0, 0));
+      X_WB2.rotate(rotation_base2);
+      X_WB2.translation() << 3.5, -8.5, 1.9; // -box_depth / 2;  Top of the box is at z = 0.
+
+      Eigen::Isometry3d X_WB3 = Eigen::Isometry3d::Identity();
+      Eigen::AngleAxisd rotation_base3(M_PI/2, Vector3<double>(1, 0, 0));
+      X_WB3.rotate(rotation_base3);
+      X_WB3.translation() << 7, -11, 1.5; // -box_depth / 2;  Top of the box is at z = 0.
    // double ramp_pitch = CompassGaitParams<double>().slope();
    // X_WB.rotate(
    //    math::RotationMatrix<double>::MakeYRotation(ramp_pitch).matrix());
 
     // Defines a color called "desert sand" according to htmlcsscolor.com.
-    Eigen::Vector4d color(0.9297, 0.7930, 0.6758, 1);
+    Eigen::Vector4d color1(0.9297, 0.7930, 0.6758, 1);
+      Eigen::Vector4d color2(0.7236, 0.1382, 0.1382, 1);
+
 
     RigidBody<double>& world = tree->world();
-    world.AddVisualElement(DrakeShapes::VisualElement(geom, X_WB, color));
+    world.AddVisualElement(DrakeShapes::VisualElement(geom, X_WB, color1));
+      world.AddVisualElement(DrakeShapes::VisualElement(geom1, X_WB1, color2));
+      world.AddVisualElement(DrakeShapes::VisualElement(geom2, X_WB2, color2));
+      world.AddVisualElement(DrakeShapes::VisualElement(geom3, X_WB3, color2));
     tree->addCollisionElement(
         drake::multibody::collision::Element(geom, X_WB, &world), world,
         "terrain");

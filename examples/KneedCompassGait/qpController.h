@@ -22,13 +22,13 @@
 #include "drake/systems/framework/discrete_values.h"
 #include "drake/lcm/drake_lcm.h"
 
-#define NQ 9
-#define NV 9
-#define NU 3
+#define NQ 11
+#define NV 11
+#define NU 5
 #define DIM 3
 #define ND 4 // friction cone approx
-#define NC 4 // 2 on the left 2 on the right
-#define NF 16 // number of contact force variables
+#define NC 2 // 2 on the left 2 on the right
+#define NF 8 // number of contact force variables
 #define m_surface_tangents 4
 #define mu 1.0
 
@@ -56,8 +56,6 @@ namespace qpControl {
             VectorX<double> q_d(NQ);
             q_d = q_des;
             this->com_des = this->rtree_->centerOfMass(this->rtree_->doKinematics(q_d));
-            auto u_des = examples::kkk::KCGFixedPointTorque();
-
             this->lfoot_ = this->rtree_->FindBody("left_lower_leg");
             this->rfoot_ = this->rtree_->FindBody("right_lower_leg");
 
@@ -92,13 +90,13 @@ namespace qpControl {
             auto con_dyn = prog.AddLinearEqualityConstraint(
                     idyn_con, Eigen::VectorXd::Zero(NQ), {vdot,u,beta}).evaluator();
             // Problem Cost --------------------------------------------
-            this->Kp_qdd = 10;
-            this->Kd_qdd = 0;
+            this->Kp_qdd_ = 10;
+            this->Kd_qdd_ = 0;
 
             Eigen::VectorXd qddot_des(NQ);
             qddot_des.setZero();
 
-            Eigen::Matrix3d I1;
+            Eigen::Matrix<double, NU, NU> I1;
             I1.setIdentity();
             Eigen::Matrix<double, NQ-NU, NU> I2;
             Eigen::Matrix<double, NQ, NU> I;
@@ -118,9 +116,11 @@ namespace qpControl {
 
         void CopyStateOutSim(const systems::Context<double>& context,
                 drake::examples::KneedCompassGait::KcgInput<double>* output) const {
-            output->set_ltau(context.get_discrete_state()[0]);
+            output->set_hrtau(context.get_discrete_state()[0]);
             output->set_htau(context.get_discrete_state()[1]);
-            output->set_rtau(context.get_discrete_state()[2]);
+            output->set_ltau(context.get_discrete_state()[2]);
+            output->set_hytau(context.get_discrete_state()[3]);
+            output->set_rtau(context.get_discrete_state()[4]);
         }
 
         void DoCalcDiscreteVariableUpdates(
@@ -165,17 +165,19 @@ namespace qpControl {
             this->con_dyn_->UpdateCoefficients(dyn_con, -C);
             // Problem Costs ------------------------------------------------------
             // PD controller
-            float kp = this->Kp_qdd;
-            float kd = this->Kd_qdd;
+            float kp = this->Kp_qdd_;
+            float kd = this->Kd_qdd_;
             auto q_des = this->q_des_;
             auto qddot_des = kp*(q_des-q) - kd*(qd);
             this->cost_qdd_->UpdateCoefficients(2*(this->weight), -2*(this->w_qdd)*qddot_des);
 
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
-            Eigen::Vector3d u;
-            u << result_vec[9], result_vec[10], result_vec[11];
-            std::cout << result_vec[9] << " " << result_vec[10] << " " << result_vec[11] << std::endl;
+            Eigen::Matrix<double, NU, 1> u;
+            u << result_vec[NQ], result_vec[NQ+1],
+            result_vec[NQ+2], result_vec[NQ+3], result_vec[NQ+4];
+            std::cout << result_vec[NQ] << " " << result_vec[NQ+1] <<
+            " " << result_vec[NQ+2] << " " << result_vec[NQ+3] << " " << result_vec[NQ+4] << std::endl;
             updates->get_mutable_vector().SetFromVector(u);
             std::cout << "ok2" << std::endl;
         }
@@ -281,8 +283,8 @@ namespace qpControl {
 
     private:
         int neps; // number of slack variables for contact
-        float Kp_qdd;
-        float Kd_qdd;
+        float Kp_qdd_;
+        float Kd_qdd_;
         bool initialized;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dyn_;
         std::shared_ptr<solvers::QuadraticCost> cost_qdd_;

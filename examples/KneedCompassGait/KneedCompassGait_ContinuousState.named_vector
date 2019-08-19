@@ -37,6 +37,24 @@ element {
     default_value: "0.0"
 }
 element {
+    name: "angle_hiprow"
+    doc: "row angle of hip"
+    doc_units: "radians"
+    default_value: "0.0"
+}
+element {
+    name: "angle_hippin"
+    doc: "pitch angle of hip"
+    doc_units: "radians"
+    default_value: "0.0"
+}
+element {
+    name: "angle_hipyaw"
+    doc: "yaw angle of hip"
+    doc_units: "radians"
+    default_value: "0.0"
+}
+element {
     name: "angle_stance_knee"
     doc: "The angle of left leg from orientation of Shank to Thigh, measured clockwise from the vertical axis."
     doc_units: "radians"
@@ -45,12 +63,6 @@ element {
 element {
     name: "angle_swing_knee"
     doc: "The angle of right leg from orientation of Shank to Thigh, measured clockwise from the vertical axis."
-    doc_units: "radians"
-    default_value: "0.0"
-}
-element {
-    name: "angle_hip"
-    doc: "The angle from orientation of vertical direction to LEFT stance thigh, measured clockwise from the vertical axis."
     doc_units: "radians"
     default_value: "0.0"
 }
@@ -91,6 +103,24 @@ element {
     default_value: "0.0"
 }
 element {
+    name: "angledot_hiprow"
+    doc: "The row velocity of the hip."
+    doc_units: "rad/sec"
+    default_value: "0.0"
+}
+element {
+    name: "angledot_hippin"
+    doc: "The pitch velocity of the hip."
+    doc_units: "rad/sec"
+    default_value: "0.0"
+}
+element {
+    name: "angledot_hipyaw"
+    doc: "The yaw velocity of the hip."
+    doc_units: "rad/sec"
+    default_value: "0.0"
+}
+element {
     name: "angledot_stance_knee"
     doc: "The angular velocity of the stance knee."
     doc_units: "rad/sec"
@@ -99,12 +129,6 @@ element {
 element {
     name: "angledot_swing_knee"
     doc: "The angular velocity of the swing knee."
-    doc_units: "rad/sec"
-    default_value: "0.0"
-}
-element {
-    name: "angledot_hip"
-    doc: "The angular velocity of the hip."
     doc_units: "rad/sec"
     default_value: "0.0"
 }
