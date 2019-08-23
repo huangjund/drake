@@ -194,6 +194,7 @@ drake_cc_binary(
         "//common:find_resource",
         "//lcm",
         "//systems/analysis",
+        "//systems/primitives:signal_logger",
         "@gflags",
     ],
 )

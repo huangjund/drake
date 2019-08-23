@@ -52,6 +52,15 @@ int DoMain() {
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
             FindResourceOrThrow("drake/examples/compass_gait/cassie.urdf"),
             multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/cart.urdf"),
+                multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/cart1.urdf"),
+                multibody::joints::kFixed, tree.get());
+        parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
+                FindResourceOrThrow("drake/examples/compass_gait/cart2.urdf"),
+                multibody::joints::kFixed, tree.get());
 
 
   {  // Add ramp
@@ -67,6 +76,12 @@ int DoMain() {
       DrakeShapes::Mesh geom2("scenario3", drake::FindResourceOrThrow(kFilePath));
       kFilePath = "drake/examples/compass_gait/table2.obj";
       DrakeShapes::Mesh geom3("scenario4", drake::FindResourceOrThrow(kFilePath));
+      kFilePath = "drake/examples/compass_gait/mug1.obj";
+      DrakeShapes::Mesh geom4("scenario5", drake::FindResourceOrThrow(kFilePath));
+      kFilePath = "drake/examples/compass_gait/cup1.obj";
+      DrakeShapes::Mesh geom5("scenario6", drake::FindResourceOrThrow(kFilePath));
+      kFilePath = "drake/examples/compass_gait/mug1.obj";
+      DrakeShapes::Mesh geom6("scenario5", drake::FindResourceOrThrow(kFilePath));
 
 
     // In the following use W for world frame and B for box frame.
@@ -74,22 +89,38 @@ int DoMain() {
     Eigen::Isometry3d X_WB = Eigen::Isometry3d::Identity();
     Eigen::AngleAxisd rotation_base(M_PI/2, Vector3<double>(1, 0, 0));
     X_WB.rotate(rotation_base);
-    X_WB.translation() << -1, -5, 1; // -box_depth / 2;  Top of the box is at z = 0.
+    X_WB.translation() << -10, 10, 1; // -box_depth / 2;  Top of the box is at z = 0.
 
       Eigen::Isometry3d X_WB1 = Eigen::Isometry3d::Identity();
       Eigen::AngleAxisd rotation_base1(M_PI/2, Vector3<double>(1, 0, 0));
       X_WB1.rotate(rotation_base1);
-      X_WB1.translation() << 12, -7.2, 2.3; // -box_depth / 2;  Top of the box is at z = 0.
+      X_WB1.translation() << 8, 6, 2.4; // -box_depth / 2;  Top of the box is at z = 0.
 
       Eigen::Isometry3d X_WB2 = Eigen::Isometry3d::Identity();
       Eigen::AngleAxisd rotation_base2(M_PI/2, Vector3<double>(1, 0, 0));
       X_WB2.rotate(rotation_base2);
-      X_WB2.translation() << 3.5, -8.5, 1.9; // -box_depth / 2;  Top of the box is at z = 0.
+      X_WB2.translation() << 1.5, 4, 2.4; // -box_depth / 2;  Top of the box is at z = 0.
 
       Eigen::Isometry3d X_WB3 = Eigen::Isometry3d::Identity();
       Eigen::AngleAxisd rotation_base3(M_PI/2, Vector3<double>(1, 0, 0));
       X_WB3.rotate(rotation_base3);
-      X_WB3.translation() << 7, -11, 1.5; // -box_depth / 2;  Top of the box is at z = 0.
+      X_WB3.translation() << 7, -2, 1.5; // -box_depth / 2;  Top of the box is at z = 0.
+
+      Eigen::Isometry3d X_WB4 = Eigen::Isometry3d::Identity();
+      Eigen::AngleAxisd rotation_base4(M_PI/2, Vector3<double>(1, 0, 0));
+      X_WB4.rotate(rotation_base4);
+      X_WB4.translation() << 8, 6.2, 2.5; // -box_depth / 2;  Top of the box is at z = 0.
+
+      Eigen::Isometry3d X_WB5 = Eigen::Isometry3d::Identity();
+      Eigen::AngleAxisd rotation_base5(M_PI/2, Vector3<double>(1, 0, 0));
+      X_WB5.rotate(rotation_base5);
+      X_WB5.translation() << 8.2, 6, 2.5; // -box_depth / 2;  Top of the box is at z = 0.
+
+      Eigen::Isometry3d X_WB6 = Eigen::Isometry3d::Identity();
+      Eigen::AngleAxisd rotation_base6(M_PI/2, Vector3<double>(1, 0, 0));
+      X_WB6.rotate(rotation_base6);
+      X_WB6.translation() << 1.5, 4, 2.5; // -box_depth / 2;  Top of the box is at z = 0.
+
    // double ramp_pitch = CompassGaitParams<double>().slope();
    // X_WB.rotate(
    //    math::RotationMatrix<double>::MakeYRotation(ramp_pitch).matrix());
@@ -97,6 +128,7 @@ int DoMain() {
     // Defines a color called "desert sand" according to htmlcsscolor.com.
     Eigen::Vector4d color1(0.9297, 0.7930, 0.6758, 1);
       Eigen::Vector4d color2(0.7236, 0.1382, 0.1382, 1);
+      Eigen::Vector4d color3(0.3423, 0.3356, 0.3221, 0.5);
 
 
     RigidBody<double>& world = tree->world();
@@ -104,6 +136,9 @@ int DoMain() {
       world.AddVisualElement(DrakeShapes::VisualElement(geom1, X_WB1, color2));
       world.AddVisualElement(DrakeShapes::VisualElement(geom2, X_WB2, color2));
       world.AddVisualElement(DrakeShapes::VisualElement(geom3, X_WB3, color2));
+      world.AddVisualElement(DrakeShapes::VisualElement(geom4, X_WB4, color3));
+      world.AddVisualElement(DrakeShapes::VisualElement(geom5, X_WB5, color3));
+      world.AddVisualElement(DrakeShapes::VisualElement(geom6, X_WB6, color3));
     tree->addCollisionElement(
         drake::multibody::collision::Element(geom, X_WB, &world), world,
         "terrain");

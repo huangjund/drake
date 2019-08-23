@@ -9,10 +9,20 @@
 #include "drake/solvers/mathematical_program.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/solvers/solve.h"
+#include "drake/systems/primitives/linear_system.h"
 
 int main(){
     using std::cout;
+    using drake::systems::LinearSystem;
     using std::endl;
+
+
+//    Eigen::Matrix<double, 2, 2> A;
+//    Eigen::Matrix<double, 2, 1> b;
+//    Eigen::Matrix<double, 1, 2> c;
+//    Eigen::Matrix<double, 1, 1> d;
+//    LinearSystem<double> system(A, b, c, d);
+
 
     drake::solvers::MathematicalProgram prog;
     // add decision variables ------------------

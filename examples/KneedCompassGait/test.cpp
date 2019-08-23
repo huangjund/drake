@@ -54,11 +54,11 @@ int DoMain() {
     Eigen::Matrix3d xA, xB;
   //  tree->computeContactJacobians(kinematics, idxA, idxB, xA, xB, Jp);
 
-    auto kinsol = tree->CreateKinematicsCache();
-    tree->doKinematics(kinsol);
-    for (int i = 0; i < 22; ++i) {
-        cout << tree->getStateName(i) << endl;
-    }
+  Eigen::Matrix<double, 3, 3> H;
+  H << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+  Eigen::Matrix<double, 2, 3> h(H.bottomRows(2));
+  H.setIdentity();h.setZero();
+  cout << H << endl;
 
 //    Eigen::Matrix<double, 3, 1> collision;
 //    collision << 0, //0,

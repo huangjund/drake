@@ -986,7 +986,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
   </link>
@@ -1021,7 +1021,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
   </link>
@@ -1030,7 +1030,7 @@
     type="fixed">
 	<origin
       xyz="-0.0369163899668939 0.0199973824278774 0.112816600067286"
-      rpy="-1.5707963267949 0.636235427921291 1.86144953020538E-05" />
+      rpy="-1.5707963267949 0.85 1.86144953020538E-05" />
 	<!--...............................
     <origin
       xyz="-0.0369163899668939 0.0199973824278774 0.109366600067286"
@@ -1040,51 +1040,7 @@
     <child
       link="spine1" />
   </joint>
-  <link
-    name="spine2">
-	
-		<!--........................-->
-	<inertial>
-      <origin
-        xyz="-0.031576759363086 -0.00714404247255757 -0.0199990534036869"
-        rpy="0 0 0" />
-      <mass
-        value="0.106" />
-      <inertia
-        ixx="8.6893E-05"
-        ixy="1.6746E-05"
-        ixz="-6.9339E-12"
-        iyy="7.1516E-05"
-        iyz="8.7283E-10"
-        izz="0.0001047" />
-    </inertial>
-	
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine2.obj" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-      </material>
-    </visual>
-  </link>
-  <joint
-    name="spine_joint2"
-    type="fixed">
-    <origin
-      xyz="-0.0634269276585492 -0.0487618122206607 0.00050000846385951"
-      rpy="0 0 0.330027191177507" />
-    <parent
-      link="spine1" />
-    <child
-      link="spine2" />
-  </joint>
+  
   <link
     name="middle-spine">
 	
@@ -1116,23 +1072,27 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
   </link>
+  
+  
   <joint
-    name="spine_joint3"
+    name="spine_joint2"
     type="fixed">
     <origin
-      xyz="-0.0634269276585498 -0.04876181222066 0.000500008463859673"
-      rpy="0 0 0.141161130517002" />
+      xyz="-0.0634269276585492 -0.0487618122206607 0.00050000846385951"
+      rpy="0 0 0.830027191177507" />
     <parent
-      link="spine2" />
+      link="spine1" />
     <child
-	
-	
       link="middle-spine" />
   </joint>
+  
+  
+  
+ 
   <link
     name="spine5">
 	
@@ -1163,7 +1123,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
   </link>
@@ -1172,60 +1132,15 @@
     type="fixed">
     <origin
       xyz="-0.144716632909506 -0.136313106103117 -0.0405000150203701"
-      rpy="3.14159265358979 0 1.00006728177212" />
+      rpy="3.14159265358979 0 0.00006728177212" />
     <parent
       link="middle-spine" />
     <child
       link="spine5" />
   </joint>
-  <link
-    name="spine6">
-	
-	
-		<!--........................-->
-	<inertial>
-      <origin
-        xyz="-0.031576759363086 -0.00714404247255757 -0.0199990534036869"
-        rpy="0 0 0" />
-      <mass
-        value="0.106" />
-      <inertia
-        ixx="8.6893E-05"
-        ixy="1.6746E-05"
-        ixz="-6.9339E-12"
-        iyy="7.1516E-05"
-        iyz="8.7283E-10"
-        izz="0.0001047" />
-    </inertial>
-	
-	
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine6.obj" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-      </material>
-    </visual>
-  </link>
-  <joint
-    name="spine_joint5"
-    type="fixed">
-    <origin
-      xyz="-0.0634269276585482 -0.0487618122206626 0.000500008463859621"
-      rpy="0 0 0.261883526358821" />
-    <parent
-      link="spine5" />
-    <child
-      link="spine6" />
-  </joint>
-  <link
+ 
+ 
+ <link
     name="top-spine">
 	
 	<!--................................-->
@@ -1254,7 +1169,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1267,17 +1182,23 @@
       </geometry>
     </collision>
   </link>
+ 
+ 
   <joint
-    name="spine_joint6"
+    name="spine_joint5"
     type="fixed">
     <origin
-      xyz="-0.0634269276585481 -0.0487618122206645 0.000500008463857074"
-      rpy="0 0 0.106854521267602" />
+      xyz="-0.0634269276585482 -0.0487618122206626 0.000500008463859621"
+      rpy="0 0 0.261883526358821" />
     <parent
-      link="spine6" />
+      link="spine5" />
     <child
       link="top-spine" />
   </joint>
+  
+  
+  
+
   <link
     name="left_shoulder_upper_base">
 	<!--.................................-->
@@ -1306,7 +1227,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1362,7 +1283,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.929411764705882 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>	
   </link>
@@ -1416,7 +1337,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1468,7 +1389,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1523,7 +1444,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1577,7 +1498,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1631,7 +1552,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1685,7 +1606,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1750,7 +1671,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1806,7 +1727,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1865,7 +1786,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1917,7 +1838,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -1973,7 +1894,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2024,7 +1945,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2079,7 +2000,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2130,7 +2051,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2185,7 +2106,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2236,7 +2157,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2291,7 +2212,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2342,7 +2263,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2393,7 +2314,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2455,7 +2376,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2507,7 +2428,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2559,7 +2480,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
   </link>
@@ -2625,7 +2546,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2679,7 +2600,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
   </link>
@@ -2723,7 +2644,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2775,7 +2696,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2827,7 +2748,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2884,7 +2805,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2935,7 +2856,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -2986,7 +2907,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3041,7 +2962,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3092,7 +3013,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3147,7 +3068,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3198,7 +3119,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3253,7 +3174,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3304,7 +3225,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3359,7 +3280,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3410,7 +3331,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3442,233 +3363,7 @@
 
 
 <!--.........................?????........-->
-    <link
-    name="spine_motor1">
-    <inertial>
-      <origin
-        xyz="0.000654140908087256 0.0650637727959917 0"
-        rpy="0 0 0" />
-      <mass
-        value="0.071999097102357" />
-      <inertia
-        ixx="0.000154561304574499"
-        ixy="-2.12816081013854E-06"
-        ixz="9.52912065661088E-22"
-        iyy="3.18901862998104E-06"
-        iyz="1.43598554339206E-21"
-        izz="0.000154854882468189" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor1.obj" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-      </material>
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor1.obj" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="joint_spine_actuator1-1"
-    type="fixed">
-    <origin
-      xyz="0.0720429443740811 -0.0127668553821179 0.106201628434077"
-      rpy="1.55054027243114 0.154442263095465 3.13625486306337" />
-    <parent
-      link="upper_base" />
-    <child
-      link="spine_motor1" />
-    <axis
-      xyz="0 0 -1" />
-    <safety_controller
-      k_velocity="0" />
-  </joint>
-  <link
-    name="spine_motor2">
-    <inertial>
-      <origin
-        xyz="0.00065414090808727 0.0650637727959918 0"
-        rpy="0 0 0" />
-      <mass
-        value="0.0719990971023571" />
-      <inertia
-        ixx="0.0001545613045745"
-        ixy="-2.12816081013853E-06"
-        ixz="2.96461531539005E-21"
-        iyy="3.18901862998105E-06"
-        iyz="-2.96461531539005E-21"
-        izz="0.000154854882468189" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor2.obj" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-      </material>
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor2.obj" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="joint_spine_actuator1-2"
-    type="fixed">
-    <origin
-      xyz="0.0720874053827536 0.00724792346056323 0.106602277198696"
-      rpy="1.55054027243114 0.154442263095465 3.13625486306337" />
-    <parent
-      link="upper_base" />
-    <child
-      link="spine_motor2" />
-    <axis
-      xyz="0 0 -1" />
-    <safety_controller
-      k_velocity="0" />
-  </joint>
-  
-  
-  
-  
-  
-  <link
-    name="spine_motor2-1">
-    <inertial>
-      <origin
-        xyz="0.000654140908087242 0.0650637727959917 1.73472347597681E-18"
-        rpy="0 0 0" />
-      <mass
-        value="0.0719990971023571" />
-      <inertia
-        ixx="0.0001545613045745"
-        ixy="-2.12816081013853E-06"
-        ixz="-2.62050818056799E-21"
-        iyy="3.18901862998105E-06"
-        iyz="-2.55433373156375E-21"
-        izz="0.000154854882468189" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor1.obj" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-      </material>
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor1.obj" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="joint_spine_actuator2-1"
-    type="fixed">
-    <origin
-      xyz="-0.134965942910872 -0.0283637677356221 -0.0299973181710497"
-      rpy="3.14159161630837 0 -1.44388608191678" />
-    <parent
-      link="middle-spine" />
-    <child
-      link="spine_motor2-1" />
-    <axis
-      xyz="0 0 -1" />
-    <safety_controller
-      k_velocity="0" />
-  </joint>
-  <link
-    name="spine_motor2-2">
-    <inertial>
-      <origin
-        xyz="0.000654140908087228 0.0650637727959917 -1.73472347597681E-18"
-        rpy="0 0 0" />
-      <mass
-        value="0.071999097102357" />
-      <inertia
-        ixx="0.000154561304574499"
-        ixy="-2.12816081013849E-06"
-        ixz="-2.99108509499175E-21"
-        iyy="3.18901862998104E-06"
-        iyz="-6.71008912903016E-21"
-        izz="0.000154854882468189" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor2.obj" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-      </material>
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="meshes/spine_motor2.obj" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="joint_spine_actuator2-2"
-    type="fixed">
-    <origin
-      xyz="-0.13496592193042 -0.0283637684559803 -0.0100214999460812"
-      rpy="3.14159161630837 0 -1.44388608191678" />
-    <parent
-      link="middle-spine" />
-    <child
-      link="spine_motor2-2" />
-    <axis
-      xyz="0 0 -1" />
-    <safety_controller
-      k_velocity="0" />
-  </joint>
-  
-  
+
   
   
  <!--
@@ -3699,7 +3394,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3754,7 +3449,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3809,7 +3504,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3920,7 +3615,7 @@
       <material
         name="">
         <color
-          rgba="0.79216 0.81961 0.93333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -3984,7 +3679,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4039,7 +3734,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4102,7 +3797,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4157,7 +3852,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4217,7 +3912,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4273,7 +3968,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4330,7 +4025,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4444,7 +4139,7 @@
       <material
         name="">
         <color
-          rgba="0.79216 0.81961 0.93333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4509,7 +4204,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4566,7 +4261,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4631,7 +4326,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4689,7 +4384,7 @@
       <material
         name="">
         <color
-          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+          rgba="0.56 0.095 0.165 1.0" />
       </material>
     </visual>
     <collision>
@@ -4749,8 +4444,8 @@
           name="joint_base"
           type="fixed">
     <origin
-            xyz="8 -7 2.4"
-            rpy="0 0 1" />
+            xyz="10 4.5 2.9"
+            rpy="0 0 -1" />
     <parent
             link="base_link" />
     <child

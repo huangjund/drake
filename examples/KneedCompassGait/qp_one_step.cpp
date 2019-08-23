@@ -18,12 +18,21 @@
 #include "drake/lcm/drake_lcm.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/manipulation/util/sim_diagram_builder.h"
+#include "drake/systems/primitives/signal_logger.h"
 
 
 
 namespace drake {
 namespace examples {
 namespace qpControl {
+    int writeCSV(Eigen::MatrixXd data, std::string& kFile) {
+        std::ofstream outFile;
+        outFile.open(kFile, std::ios::out); // 打开模式可省略
+        outFile << data << std::endl;
+        outFile.close();
+
+        return 1;
+    }
     int doMain() {
         using systems::RigidBodyPlant;
         using manipulation::util::SimDiagramBuilder;
@@ -45,8 +54,8 @@ namespace qpControl {
 
         // construct controller
         VectorX<double> q_des(NQ);
-        q_des << -0.6, 0, 0, 0, -0.2, 0,
-                0, 0, 0, 0.4, 0;
+        q_des << -0.2, 0, 0.98, 0, -0.2, 0,
+                0, 0.4, 0, 0, 0;
 
         // instantiate a rigidbodyplant from the rigidbodytree
         auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm, true);
@@ -64,11 +73,14 @@ namespace qpControl {
 //        constant0source->set_name("zero input");
 //        base_builder.Connect(constant0source->get_output_port(),
 //                kcg.get_input_port(0));
-        auto qpcontroller = base_builder.AddSystem<qpController>(q_des);
+        auto qpcontroller = base_builder.AddSystem<qpController>(q_des, 0);
         base_builder.Connect(qpcontroller->get_output_port(0),
                 kcg.get_input_port(0));
         base_builder.Connect(kcg.get_output_port(0),
                 qpcontroller->get_input_port(0));
+
+        auto logger1 = systems::LogOutput(kcg.get_output_port(0), &base_builder);
+        auto logger2 = systems::LogOutput(qpcontroller->get_output_port(0), &base_builder);
 
         // build the diagram and set the simulator
         auto diagram = base_builder.Build();
@@ -81,8 +93,21 @@ namespace qpControl {
 
         simulator.Initialize();
         simulator.AdvanceTo(1);
-        while(true)
-            visulizer->ReplayCachedSimulation();
+
+        Eigen::MatrixXd data = logger1->data();
+        Eigen::MatrixXd sampleTime = logger1->sample_times();
+        std::string kFile;
+        kFile = "data.csv";
+        writeCSV(data, kFile);
+        kFile = "time.csv";
+        writeCSV(sampleTime, kFile);
+        Eigen::MatrixXd data1 = logger2->data();
+        Eigen::MatrixXd sampleTime1 = logger2->sample_times();
+        kFile = "data1.csv";
+        writeCSV(data1, kFile);
+        kFile = "time1.csv";
+        writeCSV(sampleTime1, kFile);
+
         return 0;
     }
 }
