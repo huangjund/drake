@@ -4,6 +4,7 @@
 
 #include "drake/examples/KneedCompassGait/gen/KneedCompassGait_ContinuousState.h"
 #include "drake/examples/KneedCompassGait/gen/KneedCompassGait_Params.h"
+#include "drake/examples/KneedCompassGait/system.h"
 #include "drake/systems/framework/event.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/framework/scalar_conversion_traits.h"
@@ -58,7 +59,8 @@ int DoMain() {
   H << 1, 2, 3, 4, 5, 6, 7, 8, 9;
   Eigen::Matrix<double, 2, 3> h(H.bottomRows(2));
   H.setIdentity();h.setZero();
-  cout << H << endl;
+
+    linear_system::System test_sys;
 
 //    Eigen::Matrix<double, 3, 1> collision;
 //    collision << 0, //0,
