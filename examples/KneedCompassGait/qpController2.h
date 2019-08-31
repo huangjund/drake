@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <iostream>
+#include <iomanip>
 
 #include "drake/examples/KneedCompassGait/KCG_common.h"
 #include "drake/examples/KneedCompassGait/gen/KneedCompassGait_ContinuousState.h"
@@ -14,6 +16,7 @@
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/solvers/gurobi_solver.h"
 #include "drake/solvers/mathematical_program.h"
+#include "drake/solvers/mathematical_program_result.h"
 #include "drake/solvers/osqp_solver.h"
 #include "drake/solvers/constraint.h"
 #include "drake/solvers/solve.h"
@@ -31,8 +34,19 @@
 #define NF 8 // number of contact force variables
 #define m_surface_tangents 4
 #define mu 1.0
-#define W1 1
+#define alpha 1000
+#define W1 1e5
 #define W2 1
+#define W3 1
+#define W4 1
+#define W5 1
+#define COM 6 // state of COM
+#define KPXDD 9 // the Kp coefficient of COM x, bigger than 0
+#define KDXDD 3 //the Kd coefficient of COM x, bigger than 0
+#define DOWNTHRESH 0.2 // the threshhold of zdot decrease
+#define UPTHRESH 0.6  // the threshhold of zdot increase
+#define FLATZUP 0.1 // the theoretical highest point of foot z
+#define ZDOT 1 // the desired zdot of foot toe
 
 namespace drake {
 namespace examples {
@@ -46,7 +60,11 @@ namespace qpControl {
             this->neps = NC*DIM; // number of slack variables for contact
 
             this->DeclareVectorInputPort("KCG_states", systems::BasicVector<double>(NQ+NV));
-            this->DeclareVectorInputPort("trajectory", systems::BasicVector<double>(NQ+1));
+            this->DeclareVectorInputPort("trajectory", systems::BasicVector<double>(COM));
+            this->DeclareVectorInputPort("discrete_state", systems::BasicVector<double>(8)); // 1 is left and 0 is right
+            // (stance_x, stance_y, stance_z,
+            // next_stance_x, next_stance_y, next_stance_z,
+            // current_stance_leg, next stance_leg)
             this->DeclareVectorOutputPort(KneedCompassGait::KcgInput<double>(),
                     &qpController::CopyCommandOutSim);
             this->DeclareDiscreteState(NU);
@@ -59,7 +77,6 @@ namespace qpControl {
             VectorX<double> q_d(NQ);
             q_d.setZero();
 
-            this->com_des = this->rtree_->centerOfMass(this->rtree_->doKinematics(q_d));
             this->lfoot_ = this->rtree_->FindBody("left_lower_leg");
             this->rfoot_ = this->rtree_->FindBody("right_lower_leg");
 
@@ -73,25 +90,38 @@ namespace qpControl {
 
            // constexpr double slack_limit = 10.0;
             this->initialized = false;
-            std::cout << "ok" << std::endl;
+
             Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
 
-            // add decision variables---------------------------------
+            // add decision variables--------------------------------------------------------------------
             auto vdot = prog.NewContinuousVariables(NV, "joint acceleration"); // qddot var
             auto u = prog.NewContinuousVariables(NU, "input");  // torque var
             auto beta = prog.NewContinuousVariables(NF, "friction forces"); // contact force var
+            auto eps = prog.NewContinuousVariables(2, "slack variables"); // 2 knee slack variables
+            auto yita = prog.NewContinuousVariables(6, "stance leg slack"); // 6 stance leg slack variables
             auto x_yaw = prog.NewContinuousVariables(1, "yaw");  // robot yaw
-         //    auto eps = prog.NewContinuousVariables(neps, "slack variables");
          //   int nparams = prog.num_vars();
 
-            // Problem Constrains --------------------------------------
+            // Problem Constrains -----------------------------------------------------------------------
             auto con_u_lim = prog.AddBoundingBoxConstraint(umin,umax, u).evaluator();
-         //   auto con_fric_lim = prog.AddBoundingBoxConstraint(5, 1000000, beta).evaluator();
-        //    auto con_slack_lim = prog.AddBoundingBoxConstraint(
-        //            -slack_limit, slack_limit, eps).evaluator();
+            auto con_fric_lim = prog.AddBoundingBoxConstraint(1, 1000000, beta).evaluator();
 
-            // natural dynamic constraint
+            this->Aeq_slack << 1, 0, -1, 0,
+                                0, 1, 0, -1;
+            Eigen::Matrix<double, 2, 4> Aeq_temp;
+            Aeq_temp.setZero();
+            Eigen::Vector2d beq_slack;
+            beq_slack.setZero();
+            auto con_slack = prog.AddLinearEqualityConstraint(
+                    Aeq_temp, beq_slack, {vdot.segment(8,1), vdot.segment(10,1), eps}).evaluator();
+
+            Eigen::Matrix<double, 6, NQ+6> Aeq_leg;
+            Aeq_leg.setZero();
+            Eigen::Matrix<double, 6, 1> beq_leg;
+            beq_leg.setZero();
+            auto con_slack2 = prog.AddLinearEqualityConstraint(Aeq_leg, beq_leg, {vdot, yita}).evaluator();
+
             Eigen::Matrix<double, NQ-NU, NQ+NF> idyn_conf;
             idyn_conf.setZero();
             auto con_dynf = prog.AddLinearEqualityConstraint(
@@ -102,39 +132,72 @@ namespace qpControl {
             auto con_dyna = prog.AddLinearEqualityConstraint(
                     idyn_cona, Eigen::VectorXd::Zero(NU), {vdot, u, beta}).evaluator();
 
-            // Problem Cost --------------------------------------------
-            this->Kp_qdd_.setOnes();
-            this->Kp_qdd_ = this->Kp_qdd_*5;
-            this->Kd_qdd_ = 0;
+            Vector1<double> Aeq_yaw(0);
+            Vector1<double> beq_yaw(0);
+            auto con_yaw = prog.AddLinearEqualityConstraint(Aeq_yaw, beq_yaw, x_yaw).evaluator();
+            // Problem Cost -----------------------------------------------------------------------------
 
-            Eigen::VectorXd qddot_des(NQ);
-            qddot_des.setZero();
-            // lack of PD controller to compute qddot
+            // set the Kp and Kd for COM xddot
+            this->Kp_xdd_.setOnes();
+            this->Kp_xdd_ = this->Kp_xdd_*KPXDD;
+            this->Kd_xdd_.setOnes();
+            this->Kd_xdd_ = this->Kd_xdd_*KDXDD;
 
-            this->w_qdd_ << 100, 10, 10, 10, 100, 100, 10, 10, 5, 10, 1;
-            this->weight_ = Eigen::Matrix<double, NQ, NQ>(w_qdd_.asDiagonal());
-            auto cost_qdd = prog.AddQuadraticErrorCost(weight_, qddot_des, vdot).evaluator();
+            // the first ID term
+            Eigen::Matrix<double, NQ, NQ> Q_xddot;
+            Q_xddot.setIdentity();
+            Eigen::Matrix<double, NQ, 1> b_xddot;
+            b_xddot.setZero();
+            auto cost_xddot = prog.AddQuadraticCost(Q_xddot, b_xddot, vdot).evaluator();
 
-            this->w_yaw_ = W1;
-            Eigen::Matrix<double, 1, 1> w_yaw(2*this->w_yaw_);
-            Vector1<double> b_yaw(0);
-            auto cost_yaw = prog.AddQuadraticCost(w_yaw, b_yaw, x_yaw).evaluator();
-
-            this->w_t_ = W2;
+            // the second term
             this->weight_t_.setIdentity();
-            this->weight_t_ = this->w_t_*this->weight_t_;
-            auto cost_t = prog.AddQuadraticErrorCost(this->weight_t_, t_pre, u).evaluator();
+            this->weight_t_ *= W2;
+            Eigen::Matrix<double, NU, NU> Q_t;
+            Q_t.setIdentity();
+            Eigen::Matrix<double, NU, 1> b_t;
+            b_t.setZero();
+            auto cost_t = prog.AddQuadraticCost(Q_t, b_t, u).evaluator();
 
-            // solver setting -------------------------------------------
+            // the third term
+            this->weight_yaw_.setIdentity();
+            this->weight_yaw_ *= W3;
+            Eigen::Matrix<double, 1, 1> Q_yaw(1);
+            Vector1<double> b_yaw(0);
+            auto cost_yaw = prog.AddQuadraticCost(Q_yaw, b_yaw, x_yaw).evaluator();
+
+            // the forth term
+            this->weight_slack_.setIdentity();
+            this->weight_slack_ *= W4;
+            Eigen::Matrix<double, 2, 2> Q_slack;
+            Q_slack.setIdentity();
+            Eigen::Vector2d b_slack;
+            b_slack.setZero();
+            auto cost_slack = prog.AddQuadraticCost(Q_slack, b_slack, eps).evaluator();
+
+            this->weight_slack2_.setIdentity();
+            Eigen::Matrix<double, 6, 6> Q_slack2;
+            Q_slack2.setIdentity();
+            Eigen::Matrix<double, 6, 1> b_slack2;
+            b_slack2.setZero();
+            auto cost_slack2 = prog.AddQuadraticCost(Q_slack2, b_slack2, yita).evaluator();
+
+            // solver setting -----------------------------------------------------------------------------
             this->prog.SetSolverOption(this->solver.solver_id(), "Method", 2);
 
-            // save variables -------------------------------------------
+            // save variables ----------------------------------------------------------------------------
             this->q_des_ = q_d;
+            this->con_slack_ = con_slack;
+            this->con_slack2_ = con_slack2;
             this->con_dynf_ = con_dynf;
             this->con_dyna_ = con_dyna;
-            this->cost_qdd_ = cost_qdd;
+            this->con_yaw_ = con_yaw;
+            this->con_fric_lim_ = con_fric_lim;
+            this->cost_xddot_ = cost_xddot;
             this->cost_t_ = cost_t;
             this->cost_yaw_ = cost_yaw;
+            this->cost_slack_ = cost_slack;
+            this->cost_slack2_ = cost_slack2;
         }
 
         void DoCalcDiscreteVariableUpdates(
@@ -147,19 +210,26 @@ namespace qpControl {
           //  auto utime = context.get_time()*1000000;
 
           // get the current state and current disired trajectory
-            VectorX<double> traj = this->EvalVectorInput(context, 1)->CopyToVector();
-            VectorX<double> q_des(NQ),x_yaw_des(1); // qd_des(NV),
             VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
+            VectorX<double> traj = this->EvalVectorInput(context, 1)->CopyToVector();
+            VectorX<double> ds_state = this->EvalVectorInput(context, 2)->CopyToVector();
+            VectorX<double> xcom_des(COM), x_yaw_des(1); // qd_des(NV),
             VectorX<double> q(NQ), qd(NV);
+            VectorX<double> this_stance(3),next_stance(3);
+
             for (int i = 0; i < NQ; ++i) {
-                q_des[i] = traj[i];
+                if (i < COM)
+                    xcom_des[i] = traj[i];
+                if (i < 3){
+                    this_stance[i] = ds_state[i];
+                    next_stance[i] = ds_state[i+3];
+                }
                 q[i] = x[i];
-           //     qd_des[i] = traj[i+NQ];
                 qd[i] = x[i+NQ];
             }
-            x_yaw_des[1] = traj[NQ];
+            this->left_is_stance = ds_state(6,0);
+            x_yaw_des[1] = 0;
 
-            std::cout << "traj\n" << traj << std::endl;
             // create the current kinematic cache
             auto kinsol = (this->rtree_)->doKinematics(q, qd);
             Vector3<double> toe_collision_bias(0, 0, -0.5);
@@ -171,6 +241,7 @@ namespace qpControl {
             Eigen::MatrixXd JB;
             contactJacobianBV(*(this->rtree_), kinsol, *(this->lfoot_), *(this->rfoot_), false, JB);
 
+            // floating-base seperating
             Eigen::Matrix<double, NQ-NU, NQ> Hf(H.topRows(NQ-NU));
             Eigen::Matrix<double, NU, NQ> Ha(H.bottomRows(NU));
             Eigen::Matrix<double, NQ-NU, 1> Cf(C.topRows(NQ-NU));
@@ -181,11 +252,40 @@ namespace qpControl {
             Eigen::Matrix<double, NU, NU> Ba;
             Bf.setZero();Ba.setIdentity();
 
-           // auto com = rtree_->centerOfMass(kinsol);
+            // COM dynamics
+            auto com = rtree_->centerOfMass(kinsol);
             auto Jcom = rtree_->centerOfMassJacobian(kinsol);
-           // auto Jcomdot_times_v = rtree_->centerOfMassJacobianDotTimesV(kinsol);
+            auto Jcomdot_times_v = rtree_->centerOfMassJacobianDotTimesV(kinsol);
+            auto vcom = Jcom*qd;
+            Eigen::VectorXd phi;
+            contactDistances(*(this->rtree_), kinsol, *(this->lfoot_), *(this->rfoot_), phi);
 
-            // Problem Constraints -------------------------------------------------
+            // foot dynamics
+            auto left_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 7, 0, true);
+            auto right_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 11, 0, true);
+            auto left_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, 7, 0);
+            auto right_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, 11, 0);
+
+            // Problem Constraints ----------------------------------------------------------------------
+            Eigen::Matrix<double, NF, 1> l_contact;
+            Eigen::Matrix<double, NF, 1> u_contact;
+            l_contact.setOnes();u_contact.setOnes();
+            u_contact *= 1e6;
+            for (int i = 0; i < NC; ++i) {
+                if(phi[i] > 1e-3){
+                    for (int j = 0; j < ND; ++j) {
+                        l_contact(4*i+j,0) = 0;
+                        u_contact(4*i+j,0) = 0;
+                    }
+                }
+            }
+            this->con_fric_lim_->set_bounds(l_contact, u_contact);
+
+            Eigen::Vector2d beq_slack;
+            beq_slack[0] = -5*tan(M_PI*((q[8]+3.14)/3.14 - 0.5));
+            beq_slack[1] = -5*tan(M_PI*((q[10]+3.14)/3.14 - 0.5));
+            this->con_slack_->UpdateCoefficients(this->Aeq_slack, beq_slack);
+
             Eigen::Matrix<double, NQ-NU, NQ+NF> dyn_conf;
             dyn_conf.setZero();
             dyn_conf << Hf, -JBf;
@@ -196,23 +296,121 @@ namespace qpControl {
             dyn_cona << Ha, -Ba, -JBa;
             this->con_dyna_->UpdateCoefficients(dyn_cona, -Ca);
 
-            // Problem Costs ------------------------------------------------------
-            // PD controller
-            auto kp = this->Kp_qdd_;
-            float kd = this->Kd_qdd_;
-            auto qddot_des = kp.cwiseProduct(q_des-q) - kd*(qd);
+            Vector1<double> Aeq_yaw(1);
+            Vector1<double> beq_yaw(q[5]);
+            this->con_yaw_->UpdateCoefficients(Aeq_yaw, beq_yaw);
 
-            this->cost_qdd_->UpdateCoefficients(2*(this->weight_), -2*(this->weight_)*qddot_des);
+            // Problem Costs ---------------------------------------------------------------------------
+            auto kp = this->Kp_xdd_;
+            auto kd = this->Kd_xdd_;
+            auto xddot_des = kp.cwiseProduct(xcom_des.segment(0, 3)-com) +
+                    kd.cwiseProduct(xcom_des.segment(3,3)-vcom);
 
-            this->cost_t_->UpdateCoefficients(2*(this->weight_t_), -2*(this->weight_t_)*t_pre);
+            auto Q_xdd = 2*W1*Jcom.transpose()*Jcom;
+            auto b_xdd = 2*W1*Jcom.transpose()*(Jcomdot_times_v-xddot_des);
+            this->cost_xddot_->UpdateCoefficients(Q_xdd, b_xdd);
 
-            VectorX<double> Aeq(1);
-            this->cost_yaw_->UpdateCoefficients(2*Aeq, 2*(-2*x_yaw_des));
 
+            auto Q_t = 2*this->weight_t_;
+            auto b_t = 2*this->weight_t_.transpose()*(-t_pre);
+            this->cost_t_->UpdateCoefficients(Q_t, b_t);
+
+            auto Q_yaw = 2*this->weight_yaw_;
+            auto b_yaw = -2*this->weight_yaw_*x_yaw_des;
+            this->cost_yaw_->UpdateCoefficients(Q_yaw, b_yaw);
+
+            auto Q_slack = 2*this->weight_slack_;
+            Vector2<double> b_slack(0,0);
+            this->cost_slack_->UpdateCoefficients(Q_slack, b_slack);
+
+            // stance foot constraint and cost------------------------------------------------------------
+            Eigen::Matrix<double, 6, 6> I;
+            I.setIdentity();
+            Eigen::Matrix<double, 6, 1> b_slack2;
+            b_slack2.setZero();
+            Eigen::Matrix<double, 3, NQ> zero3n;
+            Eigen::Matrix<double, 3, 3> zero33;
+            Eigen::Matrix<double, 3, 1> zero31;
+            zero3n.setZero();zero31.setZero();zero33.setZero();
+            if (left_is_stance) {
+                Eigen::Matrix<double, 6, NQ> J;
+                J << left_toe_jaco, zero3n;
+                Eigen::Matrix<double, 6, 1> Jdotqdot;
+                Jdotqdot << left_toe_jacodotv, zero31;
+                Eigen::Matrix<double, 6, 1> Jqdot;
+                Jqdot << J*qd;
+                Jqdot *= alpha;
+                Eigen::Matrix<double, 6, 1> beq_slack2;
+                beq_slack2 << -Jdotqdot-Jqdot;
+                Eigen::Matrix<double, 6, NQ+6> Aeq_slack2;
+                Aeq_slack2 << J, -I;
+                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+                std::cout << "=======left is stance========" << std::endl;
+
+                Eigen::Matrix<double, 3, 3> weight_left_slack;
+                weight_left_slack.setIdentity();
+                weight_left_slack *= W5;
+                Eigen::Matrix<double, 6, 6> Q_slack2;
+                Q_slack2 << weight_left_slack, zero33, zero33, zero33;
+                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+            } else {
+                Eigen::Matrix<double, 6, NQ> J;
+                J << zero3n, right_toe_jaco;
+                Eigen::Matrix<double, 6, 1> Jdotqdot;
+                Jdotqdot << zero31, right_toe_jacodotv;
+                Eigen::Matrix<double, 6, 1> Jqdot;
+                Jqdot << J*qd;
+                Jqdot *= alpha;
+                Eigen::Matrix<double, 6, 1> beq_slack2;
+                beq_slack2 << -Jdotqdot-Jqdot;
+                Eigen::Matrix<double, 6, NQ+6> Aeq_slack2;
+                Aeq_slack2 << J, -I;
+                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                Eigen::Matrix<double, 3, 3> weight_right_slack;
+                weight_right_slack.setIdentity();
+                weight_right_slack *= W5;
+                Eigen::Matrix<double, 6, 6> Q_slack2;
+                Q_slack2 << zero33, zero33, zero33, weight_right_slack;
+                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+            }
+
+            // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
-            std::cout << "result vector:\n" << result_vec << std::endl;
+            // print all dicision variables out ------------------------------------------------------------
+            std::cout << "|=========vdot=========\t" << "|==========u==========\t"
+            << "|=========beta=========\t" << "|========yita=======\t" << "|========eps========\t"
+            << "|======discrete_state======\t" << std::endl;
+            for (int k = 0; k < NQ; ++k) {
+                std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
+                if (k<NU)
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<NF)
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<6)
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,6)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<2)
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
+                else
+                    std::cout << "|" << "\t\t\t";
+                if (k<6)
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< ds_state.middleRows(0,6)[k] << "\t\t";
+                else
+                    std::cout << "|" << "\t\t\t";
+                std::cout << "\n";
+            }
+//            std::cout << "vdot:\n" << result_vec.middleRows(0,NQ) << std::endl;
+//            std::cout << "======u:=====\n" << result_vec.middleRows(NQ,NU) << std::endl;
+//            std::cout << "beta:\n" << result_vec.middleRows(NQ+NU,NF) << std::endl;
+//            std::cout << "xyaw and eps\n" << result_vec.bottomRows(3) << std::endl;
             updates->get_mutable_vector().SetFromVector(u);
             t_pre = u;
           //  std::cout << "ok2" << std::endl;
@@ -270,7 +468,6 @@ namespace qpControl {
                 double theta = ii * 2 * M_PI / m_surface_tangents;
                 d.col(ii) = cos(theta) * t1 + sin(theta) * t2;
             }
-
             return d;
         }
 
@@ -286,6 +483,7 @@ namespace qpControl {
             Eigen::Matrix<double, 3, m_surface_tangents> d = surfaceTangents(normal);
 
             int inc = J.rows() / 3;
+//            std::cout << "===================contact point number:" << inc << std::endl;
             int ncols = inc * m_surface_tangents;
             int nrows;
             if (in_terms_of_qdot) {
@@ -296,8 +494,7 @@ namespace qpControl {
 
             Eigen::Matrix3Xd B(3, ncols);  // Friction polyhedron basis vectors
           //  B.resize(3, ncols);
-            JB.resize(nrows,
-                      ncols);  // Jacobian mapping forces along friction basis vectors
+            JB.resize(nrows,ncols);  // Jacobian mapping forces along friction basis vectors
 
             double norm = sqrt(1.0 + mu * mu);
 
@@ -310,6 +507,39 @@ namespace qpControl {
                             sub_J.transpose() * B.col(ii * m_surface_tangents + jj);
                 }
             }
+        }
+
+        void contactDistances(const RigidBodyTree<double> &r,
+                                        KinematicsCache<double> &cache,
+                                        RigidBody<double> &lfoot,
+                                        RigidBody<double> &rfoot,
+                                        Eigen::VectorXd &phi) const {
+            Eigen::Matrix3Xd pts = forwardKinTerrainPoints(r, cache, lfoot, rfoot);
+            int nc = pts.cols();
+
+            phi.resize(nc);
+            phi = pts.row(2);
+        }
+
+        Eigen::Matrix3Xd forwardKinTerrainPoints(const RigidBodyTree<double> &r,
+                                          KinematicsCache<double> &cache,
+                                          RigidBody<double> &lfoot,
+                                          RigidBody<double> &rfoot) const {
+            Eigen::Matrix3Xd l_pts_foot;
+            Eigen::Matrix3Xd r_pts_foot;
+
+            r.getTerrainContactPoints(lfoot, &l_pts_foot);
+            r.getTerrainContactPoints(rfoot, &r_pts_foot);
+
+            Eigen::Matrix3Xd l_pts =
+                    r.transformPoints(cache, l_pts_foot, lfoot.get_body_index(), 0);
+            Eigen::Matrix3Xd r_pts =
+                    r.transformPoints(cache, r_pts_foot, rfoot.get_body_index(), 0);
+
+            Eigen::Matrix3Xd pts(3, l_pts.cols() + r_pts.cols());
+            pts << l_pts, r_pts;
+
+            return pts;
         }
 
         template <typename Scalar>
@@ -328,28 +558,37 @@ namespace qpControl {
 
     private:
         int neps; // number of slack variables for contact
-        float Kd_qdd_;
         bool initialized;
-        float w_yaw_;
-        float w_t_;
+        mutable bool left_is_stance;
         Eigen::Matrix<double, NU, NU> weight_t_;
+        Eigen::Matrix<double, 1, 1> weight_yaw_;
+        Eigen::Matrix<double, 2, 2> weight_slack_;
+        Eigen::Matrix<double, 6, 6> weight_slack2_;
+        Eigen::Matrix<double, 2, 4> Aeq_slack;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dynf_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dyna_;
-        std::shared_ptr<solvers::QuadraticCost> cost_qdd_;
+        std::shared_ptr<solvers::LinearEqualityConstraint> con_slack_;
+        std::shared_ptr<solvers::LinearEqualityConstraint> con_slack2_;
+        std::shared_ptr<solvers::LinearEqualityConstraint> con_yaw_;
+        std::shared_ptr<solvers::BoundingBoxConstraint> con_fric_lim_;
+        std::shared_ptr<solvers::QuadraticCost> cost_xddot_;
         std::shared_ptr<solvers::QuadraticCost> cost_t_;
         std::shared_ptr<solvers::QuadraticCost> cost_yaw_;
+        std::shared_ptr<solvers::QuadraticCost> cost_slack_;
+        std::shared_ptr<solvers::QuadraticCost> cost_slack2_;
         Eigen::Matrix<double, NQ, 1> w_qdd_;
         solvers::GurobiSolver solver;
         solvers::MathematicalProgram prog;
         Eigen::Matrix<double, NQ, NQ> weight_;
         VectorX<double> q_des_;
-        VectorX<double> com_des;
         Eigen::Matrix<double, NQ, 1> Kp_qdd_;
+        Eigen::Matrix<double, NV, 1> Kd_qdd_;
+        Eigen::Matrix<double, COM/2, 1> Kp_xdd_;
+        Eigen::Matrix<double, COM/2, 1> Kd_xdd_;
         std::unique_ptr<RigidBodyTree<double>> rtree_;
         RigidBody<double>* lfoot_;
         RigidBody<double>* rfoot_;
     };
-
 }
 }
 }

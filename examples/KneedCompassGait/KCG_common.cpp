@@ -2,6 +2,8 @@
 // Created by Junda on 8/9/19.
 //
 #include "drake/examples/KneedCompassGait/KCG_common.h"
+#include "drake/examples/KneedCompassGait/system.h"
+
 
 namespace drake {
 namespace examples {
@@ -32,8 +34,8 @@ namespace kkk {
     void setDefaultContactParams(systems::RigidBodyPlant<T>& plant) {
         const double kYoung = 1e8; // Pa
         const double kDissipation = 5.0; // s/m
-        const double kStaticFriction = 1;
-        const double kDynamicFriction = 1;
+        const double kStaticFriction = 10;
+        const double kDynamicFriction = 10;
 
         drake::systems::CompliantMaterial default_material;
         default_material.set_youngs_modulus(kYoung)
@@ -54,10 +56,11 @@ namespace kkk {
 
     VectorX<double> KCGFixedPointState() {
         VectorX<double> ret(22);
-        ret <<  0, 0, 1, 0, 0, 0,
-                0, -0.3, 0, 0, -1e-6,
-                0, 0, 0, 0, 0, 0,
-                0, 4, 0, 0, 0;
+        ret <<  -1.00, 0, 0.8707, 0, 0.7268, 0,
+                0, -0.6283, -0.8361, 0, -0.7824,
+                -2, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0;
+
         return ret;
     }
 

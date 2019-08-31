@@ -16,13 +16,13 @@ namespace linear_system {
     public:
         double x_out;
         LinearSystem(Eigen::Matrix<double, Eigen::Dynamic, 1> _U) {
-            DeclareVectorOutputPort("y", drake::systems::BasicVector<double>(sz),
+            this->DeclareVectorOutputPort("y", drake::systems::BasicVector<double>(sz),
                                     &LinearSystem::CopyStateOut);
-            DeclareVectorOutputPort("foot_step", drake::systems::BasicVector<double>(8),
+            this->DeclareVectorOutputPort("foot_step", drake::systems::BasicVector<double>(8),
                     &LinearSystem::CopyDiscreteStateOut);
-            DeclarePerStepUnrestrictedUpdateEvent(&LinearSystem::Update);
-            DeclareContinuousState(sz);  // One state variable.
-            DeclareDiscreteState(8);
+            this->DeclarePerStepUnrestrictedUpdateEvent(&LinearSystem::Update);
+            this->DeclareContinuousState(sz);  // One state variable.
+            this->DeclareDiscreteState(8);
             U = _U;
             zero << 0, 0, 0, 0, 0, 0, 0, 0, 0;
             identity << 1, 0, 0, 0, 1, 0, 0, 0, 1;
@@ -89,20 +89,14 @@ namespace linear_system {
                     left = !left;
                     U(0, 0) = U(0, 0) + step_lengths[step];
                     switch_x = U(0, 0) + step_lengths[step];
-                    std::cout
-                            << "yaw*********************************************************"
-                            << context.get_continuous_state().get_vector().CopyToVector() << std::endl;
-                    std::cout << "x_step" << U(0, 0) << "y_step" << U(1, 0) << std::endl;
                     CalculateAB(0.2, 0.2, 0.7);
                     surf += 1;
                 }
                 if (X(0, 0) > U(0, 0) && surf % 2 == 1) {
-                    std::cout << "switch" << std::endl;
+                    std::cout << "=====================switch====================" << std::endl;
                     CalculateAB(-0.2, -0.2, 0.7);
                     surf += 1;
                 }
-                std::cout << "z:" << X(2, 0) << "\t z_dot" << X(5, 0) << "\t Z_double_dot"
-                          << xdot(5, 0) << std::endl;
                 time = time + h;
             }
             // context.SetContinuousState(X);
@@ -115,14 +109,14 @@ namespace linear_system {
         void CopyStateOut(const drake::systems::Context<double>& context,
                           drake::systems::BasicVector<double>* output) const {
             t = context.get_time();
-            for (int i = 0; i < sz; i++) {
-                (*output)[i] = X[i];
-            }
+//            std::cout << "================X=================================\n" << -X << std::endl;
+            output->SetFromVector(-X);
         }
 
         void CopyDiscreteStateOut(const drake::systems::Context<double>& context,
                 drake::systems::BasicVector<double>* output) const {
             auto d_state = context.get_discrete_state().get_vector().CopyToVector();
+//            std::cout << "==============d_state:========================\n" << d_state << std::endl;
             output->SetFromVector(d_state);
         }
 
@@ -134,12 +128,12 @@ namespace linear_system {
                     state->get_mutable_continuous_state();
             drake::systems::DiscreteValues<double>& d_state =
                     state->get_mutable_discrete_state();
-            d_state[0] = U(0,0);
-            d_state[1] = U(1,0);
-            d_state[2] = U(2,0);
-            d_state[3] = U(0,0)+step_lengths[step];
-            d_state[4] = U(1,0);
-            d_state[5] = U(2,0);
+            d_state[0] = -U(0,0);
+            d_state[1] = -U(1,0);
+            d_state[2] = -U(2,0);
+            d_state[3] = -(U(0,0)+step_lengths[step]);
+            d_state[4] = -U(1,0);
+            d_state[5] = -U(2,0);
             d_state[6] = left;
             d_state[7] = !left;
             for (int i = 0; i < sz; i++) {
@@ -169,7 +163,6 @@ namespace linear_system {
             system.SetInitState(X0, state, step_lengths, change_in_yaw);
             system.SetInput(U);
             simulator.AdvanceTo(2);
-            for (int i = 0; i < 6; i++) std::cout << state[i] << std::endl;
         }
     };
 }  // namespace linear_system

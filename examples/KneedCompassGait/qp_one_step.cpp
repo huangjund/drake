@@ -27,7 +27,7 @@ namespace examples {
 namespace qpControl {
     int writeCSV(Eigen::MatrixXd data, std::string& kFile) {
         std::ofstream outFile;
-        outFile.open(kFile, std::ios::out); // 打开模式可省略
+        outFile.open(kFile, std::ios::out);
         outFile << data << std::endl;
         outFile.close();
 
@@ -54,8 +54,8 @@ namespace qpControl {
 
         // construct controller
         VectorX<double> q_des(NQ);
-        q_des << -0.2, 0, 0.98, 0, -0.2, 0,
-                0, 0.4, 0, 0, 0;
+        q_des << -0.25, 0, 0.98, 0, -0.25, 0,
+                0, 0.5, 0, 0, 0;
 
         // instantiate a rigidbodyplant from the rigidbodytree
         auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm, true);
@@ -92,7 +92,7 @@ namespace qpControl {
         kcg.set_state_vector(&simulator.get_mutable_context(), x);
 
         simulator.Initialize();
-        simulator.AdvanceTo(1);
+        simulator.AdvanceTo(0.1);
 
         Eigen::MatrixXd data = logger1->data();
         Eigen::MatrixXd sampleTime = logger1->sample_times();

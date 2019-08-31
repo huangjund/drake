@@ -24,7 +24,7 @@
 #include "drake/systems/analysis/simulator.h"
 #include "drake/manipulation/util/sim_diagram_builder.h"
 #include "drake/systems/primitives/signal_logger.h"
-
+#include "drake/examples/KneedCompassGait/system.h"
 
 
 namespace drake {
@@ -57,47 +57,70 @@ namespace qpControl {
         SimDiagramBuilder<double> builder;
         DiagramBuilder<double> base_builder;
 
-        // construct controller
-        VectorX<double> q_des(NQ+1);
-        q_des << -0.15, 0, 0.988686, 0, -0.15, 0,
-                0, 0.15, 0, 0, 0, 0;
+        // construct controller desired intput
+//        VectorX<double> Xcom(COM);
+//        Xcom << 0, 0, 0.65, -1, 0, 0;
 
         // instantiate a rigidbodyplant from the rigidbodytree
         auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm, true);
         auto& kcg = *base_builder.AddSystem<RigidBodyPlant<double>>(move(tree));
         examples::kkk::setDefaultContactParams(kcg);
 
-        // connect kcg with visulizer
-        base_builder.Connect(kcg.get_output_port(0),visulizer->get_input_port(0));
-        cout << kcg.get_output_port(1).size() << endl;
-
+        // construct the controller
         auto qpcontroller = base_builder.AddSystem<qpController>();
-        base_builder.Connect(qpcontroller->get_output_port(0),
-                kcg.get_input_port(0));
-        base_builder.Connect(kcg.get_output_port(0),
-                qpcontroller->get_input_port(0));
-        // create zero source and connect it to kcg
-        VectorX<double> constant_vector(qpcontroller->get_input_port(1).size());
-        constant_vector.setZero();
-        constant_vector = q_des;
-        auto constant0source = base_builder.AddSystem<
-                ConstantVectorSource<double>>(constant_vector);
-        constant0source->set_name("trajectory_input");
-        base_builder.Connect(constant0source->get_output_port(),
-                             qpcontroller->get_input_port(1));
+
+        // construct the motion generator
+        // the real output should add a minus
+        Eigen::Matrix<double, 6, 1> U;
+        U << 1.25, 0, 0, 0, 0, 0;
+        auto motion = base_builder.AddSystem<linear_system::LinearSystem>(U);
+        Eigen::Matrix<double, 6, 1> X0;
+        X0 << 1, 0, 0.65, 1, 0, 0;
+        std::vector<double> step_lengths = {0.5, 0.5, 0.5, 0.5};
+        std::vector<double> change_in_yaw = {0, 0, 0, 0};
+        motion->set_name("motion generator");
+
+//        // create zero source and connect it to kcg
+//        VectorX<double> constant_vector(qpcontroller->get_input_port(1).size());
+//        constant_vector.setZero();
+//        constant_vector = Xcom;
+//        auto constant0source = base_builder.AddSystem<
+//                ConstantVectorSource<double>>(constant_vector);
+//        constant0source->set_name("trajectory_input");
 
         auto logger = systems::LogOutput(kcg.get_output_port(0), &base_builder);
+
+        // connect
+        base_builder.Connect(kcg.get_output_port(0),visulizer->get_input_port(0));
+        base_builder.Connect(qpcontroller->get_output_port(0),
+                             kcg.get_input_port(0));
+        base_builder.Connect(kcg.get_output_port(0),
+                             qpcontroller->get_input_port(0));
+        base_builder.Connect(motion->get_output_port(0),
+                             qpcontroller->get_input_port(1));
+        base_builder.Connect(motion->get_output_port(1),
+                            qpcontroller->get_input_port(2));
 
         // build the diagram and set the simulator
         auto diagram = base_builder.Build();
         Simulator<double> simulator(*diagram);
+        auto& motion_mutable_context = diagram->GetMutableSubsystemContext(
+                *motion, &simulator.get_mutable_context());
+        auto& state = motion_mutable_context.get_mutable_continuous_state();
+        auto& kcg_mutable_context = diagram->GetMutableSubsystemContext(
+                kcg, &simulator.get_mutable_context());
+
+    //    cout << state.CopyToVector() << endl;
+
+        motion->SetInitState(X0, state, step_lengths, change_in_yaw);
+        motion->SetInput(U);
         simulator.set_target_realtime_rate(0.1);
         simulator.set_publish_every_time_step(true);
 
         VectorX<double> x = examples::kkk::KCGFixedPointState();
-        kcg.set_state_vector(&simulator.get_mutable_context(), x);
-
+        kcg.set_state_vector(&kcg_mutable_context, x);
         simulator.Initialize();
+
         simulator.AdvanceTo(1);
 
         Eigen::MatrixXd data = logger->data();

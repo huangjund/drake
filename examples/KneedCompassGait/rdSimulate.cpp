@@ -22,6 +22,7 @@
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/witness_function.h"
 #include "drake/systems/primitives/constant_vector_source.h"
+#include "drake/systems/primitives/signal_logger.h"
 
 #define NQ 11
 #define NV 11
@@ -31,6 +32,23 @@
 namespace drake {
 namespace examples {
 namespace kkk {
+    int writeCSV(Eigen::MatrixXd data, std::string& kFile) {
+        std::ofstream outFile;
+        outFile.open(kFile, std::ios::out);
+        outFile << data << std::endl;
+        outFile.close();
+
+        return 1;
+    }
+    void printCOM(const RigidBodyTree<double>& r) {
+        auto ret = KCGFixedPointState();
+
+        VectorX<double> q, qd;
+        q = ret.segment(0,11);
+        qd = ret.segment(11,11);
+        auto kinsol = r.doKinematics(q, qd);
+        std::cout << r.centerOfMass(kinsol) << std::endl;
+    }
     class kkkcg : public systems::LeafSystem<double> {
     public:
         kkkcg(){
@@ -223,6 +241,8 @@ namespace kkk {
         using systems::RigidBodyPlant;
         using systems::Simulator;
         using systems::ConstantVectorSource;
+        using std::cout;
+        using std::endl;
 
         drake::lcm::DrakeLcm lcm;
         SimDiagramBuilder<double> builder;
@@ -231,6 +251,7 @@ namespace kkk {
         // Create Plant
         auto tree = std::make_unique<RigidBodyTree<double>>();
         tree = getKCGTreed();
+        printCOM(*tree);
         plant = builder.AddPlant(std::move(tree));
 
         // Create LCM publisher for visualization
@@ -245,7 +266,11 @@ namespace kkk {
 
         VectorX<double> constant_vector(plant->get_input_port(0).size());
         constant_vector.setZero();
-       // constant_vector[0] = 10;
+        constant_vector[0] = 0;
+        constant_vector[1] = 0;
+        constant_vector[2] = 0;
+        constant_vector[3] = 0;
+        constant_vector[4] = 0;
         auto constant_zero_source =
                 base_builder->AddSystem<ConstantVectorSource<double>>(constant_vector);
         constant_zero_source->set_name("zero input");
@@ -253,6 +278,9 @@ namespace kkk {
         // Connects the blank input command
         base_builder->Connect(constant_zero_source->get_output_port(),
                               plant->get_input_port(0));
+
+        auto logger1 = systems::LogOutput(plant->get_output_port(0), base_builder);
+   //     auto logger2 = systems::LogOutput(plant->contact_results_output_port(), base_builder);
 
         auto sys = builder.Build();
 
@@ -265,9 +293,26 @@ namespace kkk {
 
         plant->set_state_vector(&simulator.get_mutable_context(),
                                 KCGFixedPointState());
+
         simulator.Initialize();
 
-        simulator.AdvanceTo(1);
+        simulator.AdvanceTo(0.5);
+
+        Eigen::MatrixXd data1 = logger1->data();
+        Eigen::MatrixXd sampleTime1 = logger1->sample_times();
+        std::string kFile;
+        kFile = "data1.csv";
+        writeCSV(data1, kFile);
+        kFile = "time1.csv";
+        writeCSV(sampleTime1, kFile);
+//        Eigen::MatrixXd data2 = logger2->data();
+//        Eigen::MatrixXd sampleTime2 = logger2->sample_times();
+//        cout << "data2\n" << data2 << endl;
+//        cout << "sample2\n" << sampleTime2 << endl;
+//        kFile = "data2.csv";
+//        writeCSV(data2, kFile);
+//        kFile = "time2.csv";
+//        writeCSV(sampleTime2, kFile);
         return 0;
     }
 } // kkk
