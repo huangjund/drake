@@ -30,9 +30,9 @@
 namespace drake {
 namespace examples {
 namespace qpControl {
-    int writeCSV(Eigen::MatrixXd data) {
+    int writeCSV(Eigen::MatrixXd data, std::string& kFile) {
         std::ofstream outFile;
-        outFile.open("data.csv", std::ios::out);
+        outFile.open(kFile, std::ios::out);
         outFile << data << std::endl;
         outFile.close();
 
@@ -88,7 +88,8 @@ namespace qpControl {
 //                ConstantVectorSource<double>>(constant_vector);
 //        constant0source->set_name("trajectory_input");
 
-        auto logger = systems::LogOutput(kcg.get_output_port(0), &base_builder);
+        auto logger1 = systems::LogOutput(kcg.get_output_port(0), &base_builder);
+        auto logger2 = systems::LogOutput(qpcontroller->get_output_port(0), &base_builder);
 
         // connect
         base_builder.Connect(kcg.get_output_port(0),visulizer->get_input_port(0));
@@ -110,8 +111,6 @@ namespace qpControl {
         auto& kcg_mutable_context = diagram->GetMutableSubsystemContext(
                 kcg, &simulator.get_mutable_context());
 
-    //    cout << state.CopyToVector() << endl;
-
         motion->SetInitState(X0, state, step_lengths, change_in_yaw);
         motion->SetInput(U);
         simulator.set_target_realtime_rate(0.1);
@@ -121,10 +120,22 @@ namespace qpControl {
         kcg.set_state_vector(&kcg_mutable_context, x);
         simulator.Initialize();
 
-        simulator.AdvanceTo(1);
+        simulator.AdvanceTo(1.5);
 
-        Eigen::MatrixXd data = logger->data();
-        writeCSV(data);
+        Eigen::MatrixXd data1 = logger1->data();
+        Eigen::MatrixXd sampleTime1 = logger1->sample_times();
+        std::string kFile;
+        kFile = "data1.csv";
+        writeCSV(data1, kFile);
+        kFile = "time1.csv";
+        writeCSV(sampleTime1, kFile);
+
+        Eigen::MatrixXd data2 = logger2->data();
+        Eigen::MatrixXd sampleTime2 = logger2->sample_times();
+        kFile = "data2.csv";
+        writeCSV(data2, kFile);
+        kFile = "time2.csv";
+        writeCSV(sampleTime2, kFile);
 
         while(true)
             visulizer->ReplayCachedSimulation();

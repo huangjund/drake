@@ -109,14 +109,16 @@ namespace linear_system {
         void CopyStateOut(const drake::systems::Context<double>& context,
                           drake::systems::BasicVector<double>* output) const {
             t = context.get_time();
-//            std::cout << "================X=================================\n" << -X << std::endl;
-            output->SetFromVector(-X);
+            Eigen::Matrix<double, 6, 1> temp;
+            temp << X;
+            temp(0,0) = -temp(0,0);
+            temp(3,0) = -temp(3,0);
+            output->SetFromVector(temp);
         }
 
         void CopyDiscreteStateOut(const drake::systems::Context<double>& context,
                 drake::systems::BasicVector<double>* output) const {
             auto d_state = context.get_discrete_state().get_vector().CopyToVector();
-//            std::cout << "==============d_state:========================\n" << d_state << std::endl;
             output->SetFromVector(d_state);
         }
 

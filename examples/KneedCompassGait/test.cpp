@@ -21,6 +21,7 @@
 #include "drake/multibody/plant/contact_jacobians.h"
 
 
+
 namespace drake {
 namespace examples {
 namespace KneedCompassGait {
@@ -60,7 +61,9 @@ int DoMain() {
   Eigen::Matrix<double, 2, 3> h(H.bottomRows(2));
   H.setIdentity();h.setZero();
 
-    linear_system::System test_sys;
+
+
+  linear_system::System test_sys;
 
 //    Eigen::Matrix<double, 3, 1> collision;
 //    collision << 0, //0,

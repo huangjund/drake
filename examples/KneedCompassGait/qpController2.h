@@ -4,8 +4,6 @@
 #pragma once
 
 #include <memory>
-#include <vector>
-#include <string>
 #include <iostream>
 #include <iomanip>
 
@@ -34,19 +32,31 @@
 #define NF 8 // number of contact force variables
 #define m_surface_tangents 4
 #define mu 1.0
-#define alpha 1000
-#define W1 1e5
-#define W2 1
-#define W3 1
-#define W4 1
-#define W5 1
 #define COM 6 // state of COM
-#define KPXDD 9 // the Kp coefficient of COM x, bigger than 0
-#define KDXDD 3 //the Kd coefficient of COM x, bigger than 0
-#define DOWNTHRESH 0.2 // the threshhold of zdot decrease
-#define UPTHRESH 0.6  // the threshhold of zdot increase
-#define FLATZUP 0.1 // the theoretical highest point of foot z
-#define ZDOT 1 // the desired zdot of foot toe
+#define alpha 0
+#define W1 100
+#define W2 0
+#define W3 0
+#define W4 1
+#define W5 1e8
+#define W6 1e5
+#define KPXDDX 25
+#define KDXDDX 5
+#define KPXDDY 100
+#define KDXDDY 10
+#define KPXDDZ 100
+#define KDXDDZ 10
+#define THRESH 0.5 // the threshhold of zdot decrease
+#define ZH 0.1 // the desired z height of foot toe
+#define Kpx 11 // the Kp of foot coordinate x
+#define Kdx 4 // the Kd of foot coordinate x
+#define Kpy 16 // the Kp of foot coordinate y
+#define Kdy 4 // the Kd of foot coordinate y
+#define KpzUP 25 // the Kp of foot coordinate z
+#define KdzUP 5 // the Kd of foot coordinate z
+#define KpzDOWN 16
+#define KdzDOWN 4
+#define Kpyaw 1 // the Kp of base yaw
 
 namespace drake {
 namespace examples {
@@ -99,28 +109,32 @@ namespace qpControl {
             auto u = prog.NewContinuousVariables(NU, "input");  // torque var
             auto beta = prog.NewContinuousVariables(NF, "friction forces"); // contact force var
             auto eps = prog.NewContinuousVariables(2, "slack variables"); // 2 knee slack variables
-            auto yita = prog.NewContinuousVariables(6, "stance leg slack"); // 6 stance leg slack variables
+            auto yita_st = prog.NewContinuousVariables(3, "stance leg slack"); // 3 stance leg slack variables
+            auto yita_sw = prog.NewContinuousVariables(3, "swing leg slack"); // 3 swing leg slack variables
             auto x_yaw = prog.NewContinuousVariables(1, "yaw");  // robot yaw
          //   int nparams = prog.num_vars();
 
             // Problem Constrains -----------------------------------------------------------------------
             auto con_u_lim = prog.AddBoundingBoxConstraint(umin,umax, u).evaluator();
-            auto con_fric_lim = prog.AddBoundingBoxConstraint(1, 1000000, beta).evaluator();
+            auto con_fric_lim = prog.AddBoundingBoxConstraint(5, 1000000, beta).evaluator();
 
             this->Aeq_slack << 1, 0, -1, 0,
                                 0, 1, 0, -1;
             Eigen::Matrix<double, 2, 4> Aeq_temp;
-            Aeq_temp.setZero();
             Eigen::Vector2d beq_slack;
-            beq_slack.setZero();
+            beq_slack.setZero();Aeq_temp.setZero();
             auto con_slack = prog.AddLinearEqualityConstraint(
                     Aeq_temp, beq_slack, {vdot.segment(8,1), vdot.segment(10,1), eps}).evaluator();
 
-            Eigen::Matrix<double, 6, NQ+6> Aeq_leg;
-            Aeq_leg.setZero();
-            Eigen::Matrix<double, 6, 1> beq_leg;
-            beq_leg.setZero();
-            auto con_slack2 = prog.AddLinearEqualityConstraint(Aeq_leg, beq_leg, {vdot, yita}).evaluator();
+            Eigen::Matrix<double, 3, NQ+3> Aeq_stance;
+            Eigen::Matrix<double, 3, 1> beq_stance;
+            Aeq_stance.setZero();beq_stance.setZero();
+            auto con_slack2 = prog.AddLinearEqualityConstraint(Aeq_stance, beq_stance, {vdot, yita_st}).evaluator();
+
+            Eigen::Matrix<double, 3, NQ+3> Aeq_swing;
+            Eigen::Matrix<double, 3, 1> beq_swing;
+            Aeq_swing.setZero();beq_swing.setZero();
+            auto con_slack3 = prog.AddLinearEqualityConstraint(Aeq_swing, beq_swing, {vdot, yita_sw}).evaluator();
 
             Eigen::Matrix<double, NQ-NU, NQ+NF> idyn_conf;
             idyn_conf.setZero();
@@ -139,24 +153,26 @@ namespace qpControl {
 
             // set the Kp and Kd for COM xddot
             this->Kp_xdd_.setOnes();
-            this->Kp_xdd_ = this->Kp_xdd_*KPXDD;
             this->Kd_xdd_.setOnes();
-            this->Kd_xdd_ = this->Kd_xdd_*KDXDD;
+            this->Kp_xdd_(0,0) *= KPXDDX;
+            this->Kd_xdd_(0,0) *= KDXDDX;
+            this->Kp_xdd_(1,0) *= KPXDDY;
+            this->Kd_xdd_(1,0) *= KDXDDY;
+            this->Kp_xdd_(2,0) *= KPXDDZ;
+            this->Kd_xdd_(2,0) *= KDXDDZ;
 
             // the first ID term
             Eigen::Matrix<double, NQ, NQ> Q_xddot;
-            Q_xddot.setIdentity();
             Eigen::Matrix<double, NQ, 1> b_xddot;
-            b_xddot.setZero();
+            b_xddot.setZero();Q_xddot.setIdentity();
             auto cost_xddot = prog.AddQuadraticCost(Q_xddot, b_xddot, vdot).evaluator();
 
             // the second term
             this->weight_t_.setIdentity();
             this->weight_t_ *= W2;
             Eigen::Matrix<double, NU, NU> Q_t;
-            Q_t.setIdentity();
             Eigen::Matrix<double, NU, 1> b_t;
-            b_t.setZero();
+            Q_t.setIdentity();b_t.setZero();
             auto cost_t = prog.AddQuadraticCost(Q_t, b_t, u).evaluator();
 
             // the third term
@@ -170,17 +186,23 @@ namespace qpControl {
             this->weight_slack_.setIdentity();
             this->weight_slack_ *= W4;
             Eigen::Matrix<double, 2, 2> Q_slack;
-            Q_slack.setIdentity();
             Eigen::Vector2d b_slack;
-            b_slack.setZero();
+            Q_slack.setIdentity();b_slack.setZero();
             auto cost_slack = prog.AddQuadraticCost(Q_slack, b_slack, eps).evaluator();
 
             this->weight_slack2_.setIdentity();
-            Eigen::Matrix<double, 6, 6> Q_slack2;
-            Q_slack2.setIdentity();
-            Eigen::Matrix<double, 6, 1> b_slack2;
-            b_slack2.setZero();
-            auto cost_slack2 = prog.AddQuadraticCost(Q_slack2, b_slack2, yita).evaluator();
+            this->weight_slack2_ *= W5;
+            Eigen::Matrix<double, 3, 3> Q_slack2;
+            Eigen::Matrix<double, 3, 1> b_slack2;
+            b_slack2.setZero();Q_slack2.setIdentity();
+            auto cost_slack2 = prog.AddQuadraticCost(Q_slack2, b_slack2, yita_st).evaluator();
+
+            this->weight_slack3_.setIdentity();
+            this->weight_slack3_ *= W6;
+            Eigen::Matrix<double, 3, 3> Q_slack3;
+            Eigen::Matrix<double, 3, 1> b_slack3;
+            Q_slack3.setIdentity();b_slack3.setZero();
+            auto cost_slack3 = prog.AddQuadraticCost(Q_slack3, b_slack3, yita_sw).evaluator();
 
             // solver setting -----------------------------------------------------------------------------
             this->prog.SetSolverOption(this->solver.solver_id(), "Method", 2);
@@ -189,6 +211,7 @@ namespace qpControl {
             this->q_des_ = q_d;
             this->con_slack_ = con_slack;
             this->con_slack2_ = con_slack2;
+            this->con_slack3_ = con_slack3;
             this->con_dynf_ = con_dynf;
             this->con_dyna_ = con_dyna;
             this->con_yaw_ = con_yaw;
@@ -198,12 +221,15 @@ namespace qpControl {
             this->cost_yaw_ = cost_yaw;
             this->cost_slack_ = cost_slack;
             this->cost_slack2_ = cost_slack2;
+            this->cost_slack3_ = cost_slack3;
         }
 
         void DoCalcDiscreteVariableUpdates(
                 const drake::systems::Context<double>& context,
                 const std::vector<const drake::systems::DiscreteUpdateEvent<double>*>& ,
                 drake::systems::DiscreteValues<double>* updates) const override {
+            using std::cout;
+            using std::endl;
             static Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
 
@@ -265,11 +291,17 @@ namespace qpControl {
             auto right_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 11, 0, true);
             auto left_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, 7, 0);
             auto right_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, 11, 0);
+            auto left_toe_pos = rtree_->transformPoints(kinsol, toe_collision_bias, 7, 0);
+            auto right_toe_pos = rtree_->transformPoints(kinsol, toe_collision_bias, 11, 0);
+            Eigen::Matrix<double, 3, 1> left_toe_Jqdot, right_toe_Jqdot;
+            left_toe_Jqdot << left_toe_jaco*qd;
+            right_toe_Jqdot << right_toe_jaco*qd;
 
             // Problem Constraints ----------------------------------------------------------------------
             Eigen::Matrix<double, NF, 1> l_contact;
             Eigen::Matrix<double, NF, 1> u_contact;
             l_contact.setOnes();u_contact.setOnes();
+            l_contact *= 5;
             u_contact *= 1e6;
             for (int i = 0; i < NC; ++i) {
                 if(phi[i] > 1e-3){
@@ -306,6 +338,16 @@ namespace qpControl {
             auto xddot_des = kp.cwiseProduct(xcom_des.segment(0, 3)-com) +
                     kd.cwiseProduct(xcom_des.segment(3,3)-vcom);
 
+            // print all dicision variables out ------------------------------------------------------------
+            std::cout << "|=======com_des========\t" << "|========COM======\t"
+                      << "|=======COMddot========\t" << std::endl;
+            for (int k = 0; k < 3; ++k) {
+                std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
+                std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
+                std::cout << "|"<<std::fixed<<std::setprecision(8)<< xddot_des[k] << "\t\t";
+                std::cout << "\n";
+            }
+
             auto Q_xdd = 2*W1*Jcom.transpose()*Jcom;
             auto b_xdd = 2*W1*Jcom.transpose()*(Jcomdot_times_v-xddot_des);
             this->cost_xddot_->UpdateCoefficients(Q_xdd, b_xdd);
@@ -324,84 +366,143 @@ namespace qpControl {
             this->cost_slack_->UpdateCoefficients(Q_slack, b_slack);
 
             // stance foot constraint and cost------------------------------------------------------------
-            Eigen::Matrix<double, 6, 6> I;
-            I.setIdentity();
-            Eigen::Matrix<double, 6, 1> b_slack2;
-            b_slack2.setZero();
+            Eigen::Matrix<double, 3, 3> I;
+            Eigen::Matrix<double, 3, 1> b_slack2;
+            Eigen::Matrix<double, 3, 1> b_slack3;
             Eigen::Matrix<double, 3, NQ> zero3n;
             Eigen::Matrix<double, 3, 3> zero33;
             Eigen::Matrix<double, 3, 1> zero31;
-            zero3n.setZero();zero31.setZero();zero33.setZero();
+            zero3n.setZero();zero31.setZero();zero33.setZero();b_slack2.setZero();b_slack3.setZero();
+            I.setIdentity();
+            // stance parameters
+            Eigen::Matrix<double, 3, NQ> JStance;
+            Eigen::Matrix<double, 3, 1> JdotqdotStance;
+            Eigen::Matrix<double, 3, 1> JqdotStance;
+            Eigen::Matrix<double, 3, 1> beq_slack2;
+            Eigen::Matrix<double, 3, NQ+3> Aeq_slack2;
+            Eigen::Matrix<double, 3, 3> Q_slack2;
+            // swing parameters
+            Eigen::Matrix<double, 3, 1> Xddot;
+            Eigen::Matrix<double, 3, NQ> JSwing;
+            Eigen::Matrix<double, 3, 1> JdotqdotSwing;
+            Eigen::Matrix<double, 3, 1> beq_slack3;
+            Eigen::Matrix<double, 3, NQ+3> Aeq_slack3;
+            Eigen::Matrix<double, 3, 3> Q_slack3;
+            double xddot, yddot, zddot;
+
             if (left_is_stance) {
-                Eigen::Matrix<double, 6, NQ> J;
-                J << left_toe_jaco, zero3n;
-                Eigen::Matrix<double, 6, 1> Jdotqdot;
-                Jdotqdot << left_toe_jacodotv, zero31;
-                Eigen::Matrix<double, 6, 1> Jqdot;
-                Jqdot << J*qd;
-                Jqdot *= alpha;
-                Eigen::Matrix<double, 6, 1> beq_slack2;
-                beq_slack2 << -Jdotqdot-Jqdot;
-                Eigen::Matrix<double, 6, NQ+6> Aeq_slack2;
-                Aeq_slack2 << J, -I;
-                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+                // stance leg constraint
                 std::cout << "=======left is stance========" << std::endl;
-
-                Eigen::Matrix<double, 3, 3> weight_left_slack;
-                weight_left_slack.setIdentity();
-                weight_left_slack *= W5;
-                Eigen::Matrix<double, 6, 6> Q_slack2;
-                Q_slack2 << weight_left_slack, zero33, zero33, zero33;
-                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
-            } else {
-                Eigen::Matrix<double, 6, NQ> J;
-                J << zero3n, right_toe_jaco;
-                Eigen::Matrix<double, 6, 1> Jdotqdot;
-                Jdotqdot << zero31, right_toe_jacodotv;
-                Eigen::Matrix<double, 6, 1> Jqdot;
-                Jqdot << J*qd;
-                Jqdot *= alpha;
-                Eigen::Matrix<double, 6, 1> beq_slack2;
-                beq_slack2 << -Jdotqdot-Jqdot;
-                Eigen::Matrix<double, 6, NQ+6> Aeq_slack2;
-                Aeq_slack2 << J, -I;
+                JStance << left_toe_jaco;
+                JdotqdotStance << left_toe_jacodotv;
+                JqdotStance << alpha*left_toe_Jqdot;
+                beq_slack2 << -JdotqdotStance-JqdotStance;
+                Aeq_slack2 << JStance, -I;
                 this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
 
-                Eigen::Matrix<double, 3, 3> weight_right_slack;
-                weight_right_slack.setIdentity();
-                weight_right_slack *= W5;
-                Eigen::Matrix<double, 6, 6> Q_slack2;
-                Q_slack2 << zero33, zero33, zero33, weight_right_slack;
+                // stance leg cost
+                Q_slack2.setIdentity();
+                Q_slack2 *= W5;
                 this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                // swing leg constraint
+                double dis_x = next_stance[0] - right_toe_pos[0];
+                double dis_y = next_stance[1] - right_toe_pos[1];
+                xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
+                yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
+                if (fabs(dis_x) + fabs(dis_y) >= THRESH)
+                    zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
+                else
+                    zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                cout << "right_toe_pos[0]:" << right_toe_pos[0] << "\tright_toe_xdot:" << right_toe_Jqdot[0] << endl;
+                cout << "right_toe_pos[2]:" << right_toe_pos[2] << "\t right_toe_zdot:" << right_toe_Jqdot[2] << endl;
+                Xddot << xddot, yddot, zddot;
+                JSwing << right_toe_jaco;
+                JdotqdotSwing << right_toe_jacodotv;
+                Aeq_slack3 << JSwing, -I;
+                beq_slack3 << Xddot-JdotqdotSwing;
+                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                // swing leg cost
+                Q_slack3.setIdentity();
+                Q_slack3 *= W6;
+                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+            } else {
+                // stance leg constraint
+                cout << "======right is stance========" << endl;
+                JStance << right_toe_jaco;
+                JdotqdotStance << right_toe_jacodotv;
+                JqdotStance << alpha*right_toe_Jqdot;
+                beq_slack2 << -JdotqdotStance-JqdotStance;
+                Aeq_slack2 << JStance, -I;
+                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                // stance leg cost
+                Q_slack2.setIdentity();
+                Q_slack2 *= W5;
+                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                // swing leg constraint
+                double dis_x = next_stance[0] - left_toe_pos[0];
+                double dis_y = next_stance[1] - left_toe_pos[1];
+                xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
+                yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
+                if (fabs(dis_x)+fabs(dis_y) >= THRESH)
+                    zddot = KpzUP*(ZH - left_toe_pos[2])-KdzUP*left_toe_Jqdot[2];
+                else
+                    zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                cout << "left_toe_pos[0]:" << left_toe_pos[0] << "\tleft_toe_xdot:" << left_toe_Jqdot[0] << endl;
+                cout << "left_toe_pos[2]:" << left_toe_pos[2] << "\tleft_toe_zdot:" << left_toe_Jqdot[2] << endl;
+                Xddot << xddot, yddot, zddot;
+                JSwing << right_toe_jaco;
+                JdotqdotSwing << right_toe_jacodotv;
+                Aeq_slack3 << JSwing, -I;
+                beq_slack3 << Xddot-JdotqdotSwing;
+                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                // swing leg cost
+                Q_slack3.setIdentity();
+                Q_slack3 *= W6;
+                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
             }
 
             // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
+
             // print all dicision variables out ------------------------------------------------------------
             std::cout << "|=========vdot=========\t" << "|==========u==========\t"
-            << "|=========beta=========\t" << "|========yita=======\t" << "|========eps========\t"
-            << "|======discrete_state======\t" << std::endl;
+            << "|=========beta=========\t" << "|========eps========\t" << "|=====yita stance====\t"
+            << "|======yita swing======\t" << "|=====Xfootddot========\t" << "|======discrete_state==\t"<< std::endl;
             for (int k = 0; k < NQ; ++k) {
                 std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
-                if (k<NU)
+                if (k<NU) // u
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
                 else
                     std::cout <<"|"<< "\t\t\t";
-                if (k<NF)
+                if (k<NF) // beta
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
                 else
                     std::cout <<"|"<< "\t\t\t";
-                if (k<6)
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,6)[k] << "\t\t";
-                else
-                    std::cout <<"|"<< "\t\t\t";
-                if (k<2)
+                if (k<2) //eps
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
                 else
                     std::cout << "|" << "\t\t\t";
-                if (k<6)
+                if (k<3) // yita_stance
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,3)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<3) // yita_swing
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+5,3)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<3)
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< Xddot[k] << "\t\t";
+                else
+                    cout << "|" << "\t\t\t";
+                if (k<6) // discrete state
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< ds_state.middleRows(0,6)[k] << "\t\t";
                 else
                     std::cout << "|" << "\t\t\t";
@@ -563,12 +664,14 @@ namespace qpControl {
         Eigen::Matrix<double, NU, NU> weight_t_;
         Eigen::Matrix<double, 1, 1> weight_yaw_;
         Eigen::Matrix<double, 2, 2> weight_slack_;
-        Eigen::Matrix<double, 6, 6> weight_slack2_;
+        Eigen::Matrix<double, 3, 3> weight_slack2_;
+        Eigen::Matrix<double, 3, 3> weight_slack3_;
         Eigen::Matrix<double, 2, 4> Aeq_slack;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dynf_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dyna_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_slack_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_slack2_;
+        std::shared_ptr<solvers::LinearEqualityConstraint> con_slack3_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_yaw_;
         std::shared_ptr<solvers::BoundingBoxConstraint> con_fric_lim_;
         std::shared_ptr<solvers::QuadraticCost> cost_xddot_;
@@ -576,6 +679,7 @@ namespace qpControl {
         std::shared_ptr<solvers::QuadraticCost> cost_yaw_;
         std::shared_ptr<solvers::QuadraticCost> cost_slack_;
         std::shared_ptr<solvers::QuadraticCost> cost_slack2_;
+        std::shared_ptr<solvers::QuadraticCost> cost_slack3_;
         Eigen::Matrix<double, NQ, 1> w_qdd_;
         solvers::GurobiSolver solver;
         solvers::MathematicalProgram prog;

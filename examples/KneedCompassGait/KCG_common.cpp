@@ -57,8 +57,8 @@ namespace kkk {
     VectorX<double> KCGFixedPointState() {
         VectorX<double> ret(22);
         ret <<  -1.00, 0, 0.8707, 0, 0.7268, 0,
-                0, -0.6283, -0.8361, 0, -0.7824,
-                -2, 0, 0, 0, 0, 0,
+                0, -0.6283, -0.8361, 0, -0.8424,
+                -1, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0;
 
         return ret;
