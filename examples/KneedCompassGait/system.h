@@ -61,7 +61,7 @@ namespace linear_system {
         double g = 9.81;
         mutable int step = 0;
         mutable double yaw = 0;
-        mutable bool left = true;
+        mutable bool left = false;
         std::vector<double> step_lengths;
         std::vector<double> change_in_yaw;
         static const int sz = 6;

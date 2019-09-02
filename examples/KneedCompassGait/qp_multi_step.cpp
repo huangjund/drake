@@ -26,6 +26,8 @@
 #include "drake/systems/primitives/signal_logger.h"
 #include "drake/examples/KneedCompassGait/system.h"
 
+#define TIME_RATE 0.1
+#define SIMULATION_TIME 1.0
 
 namespace drake {
 namespace examples {
@@ -113,14 +115,14 @@ namespace qpControl {
 
         motion->SetInitState(X0, state, step_lengths, change_in_yaw);
         motion->SetInput(U);
-        simulator.set_target_realtime_rate(0.1);
+        simulator.set_target_realtime_rate(TIME_RATE);
         simulator.set_publish_every_time_step(true);
 
         VectorX<double> x = examples::kkk::KCGFixedPointState();
         kcg.set_state_vector(&kcg_mutable_context, x);
         simulator.Initialize();
 
-        simulator.AdvanceTo(1.5);
+        simulator.AdvanceTo(SIMULATION_TIME);
 
         Eigen::MatrixXd data1 = logger1->data();
         Eigen::MatrixXd sampleTime1 = logger1->sample_times();

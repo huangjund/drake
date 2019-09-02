@@ -34,28 +34,31 @@
 #define mu 1.0
 #define COM 6 // state of COM
 #define alpha 0
+#define ZH 0.1 // the desired z height of foot toe
 #define W1 100
 #define W2 0
 #define W3 0
 #define W4 1
 #define W5 1e8
 #define W6 1e5
-#define KPXDDX 25
-#define KDXDDX 5
+#define KPXDDX 64
+#define KDXDDX 16
 #define KPXDDY 100
 #define KDXDDY 10
 #define KPXDDZ 100
 #define KDXDDZ 10
 #define THRESH 0.5 // the threshhold of zdot decrease
-#define ZH 0.1 // the desired z height of foot toe
 #define Kpx 11 // the Kp of foot coordinate x
-#define Kdx 4 // the Kd of foot coordinate x
+#define Kdx 5 // the Kd of foot coordinate x
+#define Kepx 0.1
 #define Kpy 16 // the Kp of foot coordinate y
 #define Kdy 4 // the Kd of foot coordinate y
+#define Kepy 0.1
 #define KpzUP 25 // the Kp of foot coordinate z
 #define KdzUP 5 // the Kd of foot coordinate z
 #define KpzDOWN 16
-#define KdzDOWN 4
+#define KdzDOWN 1
+#define Kepz 0.1
 #define Kpyaw 1 // the Kp of base yaw
 
 namespace drake {
@@ -285,6 +288,7 @@ namespace qpControl {
             auto vcom = Jcom*qd;
             Eigen::VectorXd phi;
             contactDistances(*(this->rtree_), kinsol, *(this->lfoot_), *(this->rfoot_), phi);
+//            cout << "phi1:" << phi[0] << "\tphi2:" << phi[1] << endl;
 
             // foot dynamics
             auto left_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 7, 0, true);
@@ -304,7 +308,7 @@ namespace qpControl {
             l_contact *= 5;
             u_contact *= 1e6;
             for (int i = 0; i < NC; ++i) {
-                if(phi[i] > 1e-3){
+                if(phi[i] > 3e-3){
                     for (int j = 0; j < ND; ++j) {
                         l_contact(4*i+j,0) = 0;
                         u_contact(4*i+j,0) = 0;
@@ -340,11 +344,12 @@ namespace qpControl {
 
             // print all dicision variables out ------------------------------------------------------------
             std::cout << "|=======com_des========\t" << "|========COM======\t"
-                      << "|=======COMddot========\t" << std::endl;
+                      << "|=======COMddot========\t" << "|=====COMdot_des==\t" << std::endl;
             for (int k = 0; k < 3; ++k) {
                 std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
                 std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
                 std::cout << "|"<<std::fixed<<std::setprecision(8)<< xddot_des[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << xcom_des.segment(3,3)[k] << "\t\t";
                 std::cout << "\n";
             }
 
@@ -448,8 +453,10 @@ namespace qpControl {
                 double dis_y = next_stance[1] - left_toe_pos[1];
                 xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
                 yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                if (fabs(dis_x)+fabs(dis_y) >= THRESH)
-                    zddot = KpzUP*(ZH - left_toe_pos[2])-KdzUP*left_toe_Jqdot[2];
+                cout << "dis_x:" << dis_x << "\t dis_y:" << dis_y << endl;
+                if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
+                    zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
+                }
                 else
                     zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
                 cout << "left_toe_pos[0]:" << left_toe_pos[0] << "\tleft_toe_xdot:" << left_toe_Jqdot[0] << endl;
@@ -471,6 +478,12 @@ namespace qpControl {
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
+//            u(0,0) = -u(0,0);
+//            u(1,0) = -u(1,0);
+//            auto temp = u(2,0);
+//            u(2,0) = u(4,0);
+//            u(3,0) = -u(3,0);
+//            u(4,0) = temp;
 
             // print all dicision variables out ------------------------------------------------------------
             std::cout << "|=========vdot=========\t" << "|==========u==========\t"
