@@ -9,3 +9,6 @@ More informations, please see LIDAR:
 
 first run drake_visualizer  
 Then run the simulate file to see the scenario
+
+## QP controller multistep:
+in the folder //examples/Kneedcompassgat:qp_multi_step
