@@ -137,6 +137,33 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "qpControllertest",
+    srcs = ["qpControllertest.cpp"],
+    hdrs = [
+        "qpControllertest.h",
+        "system.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":KCG_common",
+        ":Kneed_compass_gait_vector_types",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/rigid_body_plant:contact_results",
+        "//lcm",
+        "//solvers:constraint",
+        "//solvers:gurobi_qp",
+        "//solvers:gurobi_solver",
+        "//solvers:mathematical_program",
+        "//solvers:mathematical_program_result",
+        "//solvers:osqp_solver",
+        "//solvers:solve",
+        "//systems/framework:discrete_values",
+        "//systems/framework:leaf_system",
+        "//systems/framework:vector_system",
+    ],
+)
+
+drake_cc_library(
     name = "KneedCompassGait_lcm",
     srcs = ["KneedCompassGait_lcm.cpp"],
     hdrs = ["KneedCompassGait_lcm.h"],
@@ -278,6 +305,30 @@ drake_cc_binary(
     deps = [
         ":KCG_common",
         ":qpController2",
+        "//attic/manipulation/util:sim_diagram_builder",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody:rigid_body_tree_construction",
+        "//attic/multibody/joints",
+        "//attic/multibody/rigid_body_plant",
+        "//attic/multibody/rigid_body_plant:drake_visualizer",
+        "//common:find_resource",
+        "//lcm",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram_builder",
+        "//systems/framework:vector_system",
+        "//systems/primitives:constant_value_source",
+        "//systems/primitives:signal_logger",
+    ],
+)
+
+drake_cc_binary(
+    name = "qp_multi_test",
+    srcs = ["qp_multi_test.cpp"],
+    add_test_rule = 1,
+    test_rule_args = ["--target_realtime_rate=0.0"],
+    deps = [
+        ":KCG_common",
+        ":qpControllertest",
         "//attic/manipulation/util:sim_diagram_builder",
         "//attic/multibody:rigid_body_tree",
         "//attic/multibody:rigid_body_tree_construction",

@@ -296,7 +296,7 @@ namespace kkk {
 
         simulator.Initialize();
 
-        simulator.AdvanceTo(0.5);
+        simulator.AdvanceTo(0.25);
 
         Eigen::MatrixXd data1 = logger1->data();
         Eigen::MatrixXd sampleTime1 = logger1->sample_times();

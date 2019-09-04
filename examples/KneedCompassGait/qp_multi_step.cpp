@@ -26,9 +26,8 @@
 #include "drake/systems/primitives/signal_logger.h"
 #include "drake/examples/KneedCompassGait/system.h"
 
-#define TIME_RATE 0.1
+#define TIME_RATE 0.5
 #define SIMULATION_TIME 1.0
-
 namespace drake {
 namespace examples {
 namespace qpControl {
@@ -92,6 +91,7 @@ namespace qpControl {
 
         auto logger1 = systems::LogOutput(kcg.get_output_port(0), &base_builder);
         auto logger2 = systems::LogOutput(qpcontroller->get_output_port(0), &base_builder);
+        auto logger3 = systems::LogOutput(qpcontroller->get_output_port(1), &base_builder);
 
         // connect
         base_builder.Connect(kcg.get_output_port(0),visulizer->get_input_port(0));
@@ -138,6 +138,13 @@ namespace qpControl {
         writeCSV(data2, kFile);
         kFile = "time2.csv";
         writeCSV(sampleTime2, kFile);
+
+        Eigen::MatrixXd data3 = logger3->data();
+        Eigen::MatrixXd sampleTime3 = logger3->sample_times();
+        kFile = "data3.csv";
+        writeCSV(data3, kFile);
+        kFile = "time3.csv";
+        writeCSV(sampleTime3, kFile);
 
         while(true)
             visulizer->ReplayCachedSimulation();

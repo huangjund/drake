@@ -35,31 +35,36 @@
 #define COM 6 // state of COM
 #define alpha 0
 #define ZH 0.1 // the desired z height of foot toe
-#define W1 100
+#define contact_phi 1e-3
+#define W1 5e4
 #define W2 0
 #define W3 0
-#define W4 1
+#define W4 2e3
 #define W5 1e8
 #define W6 1e5
-#define KPXDDX 64
-#define KDXDDX 16
+#define W5i 1e5
+#define W6i 1e5
+#define KPXDDX 500
+#define KDXDDX 150
 #define KPXDDY 100
 #define KDXDDY 10
-#define KPXDDZ 100
-#define KDXDDZ 10
-#define THRESH 0.5 // the threshhold of zdot decrease
-#define Kpx 11 // the Kp of foot coordinate x
-#define Kdx 5 // the Kd of foot coordinate x
-#define Kepx 0.1
+#define KPXDDZ 50
+#define KDXDDZ 20
+#define Kpx 16 // the Kp of foot coordinate x
+#define Kdx 4.2 // the Kd of foot coordinate x
 #define Kpy 16 // the Kp of foot coordinate y
 #define Kdy 4 // the Kd of foot coordinate y
-#define Kepy 0.1
-#define KpzUP 25 // the Kp of foot coordinate z
-#define KdzUP 5 // the Kd of foot coordinate z
-#define KpzDOWN 16
-#define KdzDOWN 1
-#define Kepz 0.1
-#define Kpyaw 1 // the Kp of base yaw
+#define KpzUP 49 // the Kp of foot coordinate z
+#define KdzUP 7 // the Kd of foot coordinate z
+#define KpzDOWN 2
+#define KdzDOWN 50
+#define Kpxi 1 // the Kp of foot coordinate x
+#define Kdxi 0 // the Kd of foot coordinate x
+#define Kpyi 1 // the Kp of foot coordinate y
+#define Kdyi 0 // the Kd of foot coordinate y
+#define KpzUPi 5 // the Kp of foot coordinate z
+#define KdzUPi 0 // the Kd of foot coordinate z
+#define THRESH 0.5 // the threshhold of zdot decrease
 
 namespace drake {
 namespace examples {
@@ -80,6 +85,8 @@ namespace qpControl {
             // current_stance_leg, next stance_leg)
             this->DeclareVectorOutputPort(KneedCompassGait::KcgInput<double>(),
                     &qpController::CopyCommandOutSim);
+            this->DeclareVectorOutputPort(systems::BasicVector<double>(18),
+                                          &qpController::COM_ToeOutPut);
             this->DeclareDiscreteState(NU);
 
            // constexpr double print_period = 0.05;
@@ -152,6 +159,12 @@ namespace qpControl {
             Vector1<double> Aeq_yaw(0);
             Vector1<double> beq_yaw(0);
             auto con_yaw = prog.AddLinearEqualityConstraint(Aeq_yaw, beq_yaw, x_yaw).evaluator();
+
+            Eigen::Matrix2d Aeq_tau;
+            Aeq_tau.setIdentity();
+            Eigen::Vector2d beq_tau;
+            beq_tau.setZero();
+            auto con_tau = prog.AddLinearEqualityConstraint(Aeq_tau, beq_tau, {u.segment(0,1), u.segment(3,1)});
             // Problem Cost -----------------------------------------------------------------------------
 
             // set the Kp and Kd for COM xddot
@@ -307,8 +320,10 @@ namespace qpControl {
             l_contact.setOnes();u_contact.setOnes();
             l_contact *= 5;
             u_contact *= 1e6;
+            int count=2; // if count == 1; then is swing and stance phase; if count == 2, then is impact phase
             for (int i = 0; i < NC; ++i) {
-                if(phi[i] > 3e-3){
+                if(phi[i] > contact_phi){
+                    count--;
                     for (int j = 0; j < ND; ++j) {
                         l_contact(4*i+j,0) = 0;
                         u_contact(4*i+j,0) = 0;
@@ -336,22 +351,13 @@ namespace qpControl {
             Vector1<double> beq_yaw(q[5]);
             this->con_yaw_->UpdateCoefficients(Aeq_yaw, beq_yaw);
 
+
             // Problem Costs ---------------------------------------------------------------------------
             auto kp = this->Kp_xdd_;
             auto kd = this->Kd_xdd_;
             auto xddot_des = kp.cwiseProduct(xcom_des.segment(0, 3)-com) +
                     kd.cwiseProduct(xcom_des.segment(3,3)-vcom);
 
-            // print all dicision variables out ------------------------------------------------------------
-            std::cout << "|=======com_des========\t" << "|========COM======\t"
-                      << "|=======COMddot========\t" << "|=====COMdot_des==\t" << std::endl;
-            for (int k = 0; k < 3; ++k) {
-                std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
-                std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
-                std::cout << "|"<<std::fixed<<std::setprecision(8)<< xddot_des[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << xcom_des.segment(3,3)[k] << "\t\t";
-                std::cout << "\n";
-            }
 
             auto Q_xdd = 2*W1*Jcom.transpose()*Jcom;
             auto b_xdd = 2*W1*Jcom.transpose()*(Jcomdot_times_v-xddot_des);
@@ -395,7 +401,7 @@ namespace qpControl {
             Eigen::Matrix<double, 3, 3> Q_slack3;
             double xddot, yddot, zddot;
 
-            if (left_is_stance) {
+            if (left_is_stance && count==1) {
                 // stance leg constraint
                 std::cout << "=======left is stance========" << std::endl;
                 JStance << left_toe_jaco;
@@ -415,13 +421,17 @@ namespace qpControl {
                 double dis_y = next_stance[1] - right_toe_pos[1];
                 xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
                 yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
-                if (fabs(dis_x) + fabs(dis_y) >= THRESH)
+                if (fabs(dis_x) + fabs(dis_y) >= THRESH){
                     zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
-                else
+                    Xddot << xddot, yddot, zddot;
+                }
+                else{
                     zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
-                cout << "right_toe_pos[0]:" << right_toe_pos[0] << "\tright_toe_xdot:" << right_toe_Jqdot[0] << endl;
-                cout << "right_toe_pos[2]:" << right_toe_pos[2] << "\t right_toe_zdot:" << right_toe_Jqdot[2] << endl;
-                Xddot << xddot, yddot, zddot;
+                    if (phi[1] < contact_phi)
+                        Xddot << 0, 0, zddot;
+                    else
+                        Xddot << xddot, yddot, zddot;
+                }
                 JSwing << right_toe_jaco;
                 JdotqdotSwing << right_toe_jacodotv;
                 Aeq_slack3 << JSwing, -I;
@@ -433,7 +443,40 @@ namespace qpControl {
                 Q_slack3 *= W6;
                 this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
-            } else {
+            } else if (left_is_stance && count==2) { // left stance impact phase
+                // stance leg constraint
+                cout << "======left is stance==impact pahse======" << endl;
+                JStance << right_toe_jaco;
+                JdotqdotStance << right_toe_jacodotv;
+                JqdotStance << alpha*right_toe_Jqdot;
+                beq_slack2 << -JdotqdotStance-JqdotStance;
+                Aeq_slack2 << JStance, -I;
+                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                // stance leg cost
+                Q_slack2.setIdentity();
+                Q_slack2 *= W5i;
+                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                // swing leg constraint
+                double dis_x = next_stance[0] - left_toe_pos[0];
+                double dis_y = next_stance[1] - left_toe_pos[1];
+                xddot = Kpxi*dis_x-Kdxi*left_toe_Jqdot[0];
+                yddot = Kpyi*dis_y-Kdyi*left_toe_Jqdot[1];
+                zddot = KpzUPi * (ZH - left_toe_pos[2]) - KdzUPi * left_toe_Jqdot[2];
+                Xddot << xddot, yddot, zddot;
+                JSwing << left_toe_jaco;
+                JdotqdotSwing << left_toe_jacodotv;
+                Aeq_slack3 << JSwing, -I;
+                beq_slack3 << Xddot-JdotqdotSwing;
+                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                // swing leg cost
+                Q_slack3.setIdentity();
+                Q_slack3 *= W6i;
+                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+            } else if (!left_is_stance && count==1) {
                 // stance leg constraint
                 cout << "======right is stance========" << endl;
                 JStance << right_toe_jaco;
@@ -453,14 +496,49 @@ namespace qpControl {
                 double dis_y = next_stance[1] - left_toe_pos[1];
                 xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
                 yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                cout << "dis_x:" << dis_x << "\t dis_y:" << dis_y << endl;
                 if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
                     zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
+                    Xddot << xddot, yddot, zddot;
                 }
-                else
+                else{
                     zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
-                cout << "left_toe_pos[0]:" << left_toe_pos[0] << "\tleft_toe_xdot:" << left_toe_Jqdot[0] << endl;
-                cout << "left_toe_pos[2]:" << left_toe_pos[2] << "\tleft_toe_zdot:" << left_toe_Jqdot[2] << endl;
+                    if (phi[0] < contact_phi)
+                        Xddot << 0, 0, zddot;
+                    else
+                        Xddot << xddot, yddot, zddot;
+                }
+                JSwing << left_toe_jaco;
+                JdotqdotSwing << left_toe_jacodotv;
+                Aeq_slack3 << JSwing, -I;
+                beq_slack3 << Xddot-JdotqdotSwing;
+                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                // swing leg cost
+                Q_slack3.setIdentity();
+                Q_slack3 *= W6;
+                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+            } else { // right stance impact phase
+                cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
+                // stance leg constraint
+                std::cout << "=======right is stance==impact phase======" << std::endl;
+                JStance << left_toe_jaco;
+                JdotqdotStance << left_toe_jacodotv;
+                JqdotStance << alpha*left_toe_Jqdot;
+                beq_slack2 << -JdotqdotStance-JqdotStance;
+                Aeq_slack2 << JStance, -I;
+                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                // stance leg cost
+                Q_slack2.setIdentity();
+                Q_slack2 *= W5i;
+                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                // swing leg constraint
+                double dis_x = next_stance[0] - right_toe_pos[0];
+                double dis_y = next_stance[1] - right_toe_pos[1];
+                xddot = Kpxi*dis_x-Kdxi*right_toe_Jqdot[0];
+                yddot = Kpyi*dis_y-Kdyi*right_toe_Jqdot[1];
+                zddot = KpzUPi * (ZH - right_toe_pos[2]) - KdzUPi * right_toe_Jqdot[2];
                 Xddot << xddot, yddot, zddot;
                 JSwing << right_toe_jaco;
                 JdotqdotSwing << right_toe_jacodotv;
@@ -470,26 +548,41 @@ namespace qpControl {
 
                 // swing leg cost
                 Q_slack3.setIdentity();
-                Q_slack3 *= W6;
+                Q_slack3 *= W6i;
                 this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
             }
 
             // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
-//            u(0,0) = -u(0,0);
-//            u(1,0) = -u(1,0);
-//            auto temp = u(2,0);
-//            u(2,0) = u(4,0);
-//            u(3,0) = -u(3,0);
-//            u(4,0) = temp;
+
+            std::cout << "|=======com_des========\t" << "|========COM======\t"
+                      << "|======COM velocity====\t" << "|=====COMdot_des==\t"
+                      << "|==right toe pos=======\t" << "|==right toe velocity=\t"
+                      << "|==left toe pos========\t" << "|===left toe velocity=\t"
+                      << std::endl;
+            for (int k = 0; k < 3; ++k) {
+                std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
+                std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
+                std::cout << "|"<<std::fixed<<std::setprecision(8)<< vcom[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << xcom_des.segment(3,3)[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_pos[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_Jqdot[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_pos[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_Jqdot[k] << "\t\t";
+                std::cout << "\n";
+            }
 
             // print all dicision variables out ------------------------------------------------------------
-            std::cout << "|=========vdot=========\t" << "|==========u==========\t"
-            << "|=========beta=========\t" << "|========eps========\t" << "|=====yita stance====\t"
-            << "|======yita swing======\t" << "|=====Xfootddot========\t" << "|======discrete_state==\t"<< std::endl;
+            std::cout <<"|==========q=======\t"<<"|========v=========\t" <<
+            "|=========vdot=========\t" << "|==========u==========\t"
+            << "|=========beta=========\t" <<  "|=====yita stance====\t"
+            << "|======yita swing======\t" << "|=====Xfootddot========\t" <<  std::endl;
             for (int k = 0; k < NQ; ++k) {
+                cout << "|" << std::fixed<<std::setprecision(8) << q[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << qd[k] << "\t\t";
                 std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
                 if (k<NU) // u
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
@@ -499,10 +592,10 @@ namespace qpControl {
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
                 else
                     std::cout <<"|"<< "\t\t\t";
-                if (k<2) //eps
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
-                else
-                    std::cout << "|" << "\t\t\t";
+//                if (k<2) //eps
+//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
+//                else
+//                    std::cout << "|" << "\t\t\t";
                 if (k<3) // yita_stance
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,3)[k] << "\t\t";
                 else
@@ -515,19 +608,15 @@ namespace qpControl {
                     std::cout <<"|"<<std::fixed<<std::setprecision(8)<< Xddot[k] << "\t\t";
                 else
                     cout << "|" << "\t\t\t";
-                if (k<6) // discrete state
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< ds_state.middleRows(0,6)[k] << "\t\t";
-                else
-                    std::cout << "|" << "\t\t\t";
+//                if (k<2) // discrete state
+//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
+//                else
+//                    std::cout << "|" << "\t\t\t";
                 std::cout << "\n";
             }
-//            std::cout << "vdot:\n" << result_vec.middleRows(0,NQ) << std::endl;
-//            std::cout << "======u:=====\n" << result_vec.middleRows(NQ,NU) << std::endl;
-//            std::cout << "beta:\n" << result_vec.middleRows(NQ+NU,NF) << std::endl;
-//            std::cout << "xyaw and eps\n" << result_vec.bottomRows(3) << std::endl;
             updates->get_mutable_vector().SetFromVector(u);
+            COM_FOOT << xcom_des, com, vcom, right_toe_pos, left_toe_pos;
             t_pre = u;
-          //  std::cout << "ok2" << std::endl;
         }
 
         void CopyCommandOutSim(const systems::Context<double>& context,
@@ -537,6 +626,11 @@ namespace qpControl {
             output->set_ltau(context.get_discrete_state()[2]);
             output->set_hytau(context.get_discrete_state()[3]);
             output->set_rtau(context.get_discrete_state()[4]);
+        }
+
+        void COM_ToeOutPut(const systems::Context<double>& ,
+                           systems::BasicVector<double>* output) const {
+            output->SetFromVector(COM_FOOT);
         }
 
         Eigen::MatrixXd contactJacobian(const RigidBodyTree<double> &r,
@@ -680,6 +774,7 @@ namespace qpControl {
         Eigen::Matrix<double, 3, 3> weight_slack2_;
         Eigen::Matrix<double, 3, 3> weight_slack3_;
         Eigen::Matrix<double, 2, 4> Aeq_slack;
+        mutable Eigen::Matrix<double, 18, 1> COM_FOOT;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dynf_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dyna_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_slack_;
