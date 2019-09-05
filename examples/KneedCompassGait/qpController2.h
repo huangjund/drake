@@ -401,157 +401,505 @@ namespace qpControl {
             Eigen::Matrix<double, 3, 3> Q_slack3;
             double xddot, yddot, zddot;
 
-            if (left_is_stance && count==1) {
-                // stance leg constraint
-                std::cout << "=======left is stance========" << std::endl;
-                JStance << left_toe_jaco;
-                JdotqdotStance << left_toe_jacodotv;
-                JqdotStance << alpha*left_toe_Jqdot;
-                beq_slack2 << -JdotqdotStance-JqdotStance;
-                Aeq_slack2 << JStance, -I;
-                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+            static double stance_now=-0.75;
+            static bool isNew = false;
+            if (stance_now == this_stance[0])
+                isNew = false;
+            else
+                isNew = true;
+            stance_now = this_stance[0];
+            
+            static int count_num = count;
+            static bool count_num_change = false;
+            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
+            << "\tcount_num_change:" << count_num_change << endl;
+            if (isNew){
+                if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
+                    count_num = count;
+                    // stance leg constraint
+                    std::cout << "=======left is stance========" << std::endl;
+                    JStance << left_toe_jaco;
+                    JdotqdotStance << left_toe_jacodotv;
+                    JqdotStance << alpha*left_toe_Jqdot;
+                    beq_slack2 << -JdotqdotStance-JqdotStance;
+                    Aeq_slack2 << JStance, -I;
+                    this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
 
-                // stance leg cost
-                Q_slack2.setIdentity();
-                Q_slack2 *= W5;
-                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+                    // stance leg cost
+                    Q_slack2.setIdentity();
+                    Q_slack2 *= W5;
+                    this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
-                // swing leg constraint
-                double dis_x = next_stance[0] - right_toe_pos[0];
-                double dis_y = next_stance[1] - right_toe_pos[1];
-                xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
-                yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
-                if (fabs(dis_x) + fabs(dis_y) >= THRESH){
-                    zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
-                    Xddot << xddot, yddot, zddot;
-                }
-                else{
-                    zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
-                    if (phi[1] < contact_phi)
-                        Xddot << 0, 0, zddot;
-                    else
+                    // swing leg constraint
+                    double dis_x = next_stance[0] - right_toe_pos[0];
+                    double dis_y = next_stance[1] - right_toe_pos[1];
+                    xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
+                    yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
+                    if (fabs(dis_x) + fabs(dis_y) >= THRESH){
+                        zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
                         Xddot << xddot, yddot, zddot;
-                }
-                JSwing << right_toe_jaco;
-                JdotqdotSwing << right_toe_jacodotv;
-                Aeq_slack3 << JSwing, -I;
-                beq_slack3 << Xddot-JdotqdotSwing;
-                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+                    }
+                    else{
+                        zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                        if (phi[1] < contact_phi)
+                            Xddot << 0, 0, zddot;
+                        else
+                            Xddot << xddot, yddot, zddot;
+                    }
+                    JSwing << right_toe_jaco;
+                    JdotqdotSwing << right_toe_jacodotv;
+                    Aeq_slack3 << JSwing, -I;
+                    beq_slack3 << Xddot-JdotqdotSwing;
+                    this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
 
-                // swing leg cost
-                Q_slack3.setIdentity();
-                Q_slack3 *= W6;
-                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+                    // swing leg cost
+                    Q_slack3.setIdentity();
+                    Q_slack3 *= W6;
+                    this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
-            } else if (left_is_stance && count==2) { // left stance impact phase
-                // stance leg constraint
-                cout << "======left is stance==impact pahse======" << endl;
-                JStance << right_toe_jaco;
-                JdotqdotStance << right_toe_jacodotv;
-                JqdotStance << alpha*right_toe_Jqdot;
-                beq_slack2 << -JdotqdotStance-JqdotStance;
-                Aeq_slack2 << JStance, -I;
-                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+                } else {    // if the trajectory is new and right is the stance leg then to swing phase
+                    count_num = count;
+                    // stance leg constraint
+                    cout << "======right is stance========" << endl;
+                    JStance << right_toe_jaco;
+                    JdotqdotStance << right_toe_jacodotv;
+                    JqdotStance << alpha*right_toe_Jqdot;
+                    beq_slack2 << -JdotqdotStance-JqdotStance;
+                    Aeq_slack2 << JStance, -I;
+                    this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
 
-                // stance leg cost
-                Q_slack2.setIdentity();
-                Q_slack2 *= W5i;
-                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+                    // stance leg cost
+                    Q_slack2.setIdentity();
+                    Q_slack2 *= W5;
+                    this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
-                // swing leg constraint
-                double dis_x = next_stance[0] - left_toe_pos[0];
-                double dis_y = next_stance[1] - left_toe_pos[1];
-                xddot = Kpxi*dis_x-Kdxi*left_toe_Jqdot[0];
-                yddot = Kpyi*dis_y-Kdyi*left_toe_Jqdot[1];
-                zddot = KpzUPi * (ZH - left_toe_pos[2]) - KdzUPi * left_toe_Jqdot[2];
-                Xddot << xddot, yddot, zddot;
-                JSwing << left_toe_jaco;
-                JdotqdotSwing << left_toe_jacodotv;
-                Aeq_slack3 << JSwing, -I;
-                beq_slack3 << Xddot-JdotqdotSwing;
-                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
-
-                // swing leg cost
-                Q_slack3.setIdentity();
-                Q_slack3 *= W6i;
-                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
-
-            } else if (!left_is_stance && count==1) {
-                // stance leg constraint
-                cout << "======right is stance========" << endl;
-                JStance << right_toe_jaco;
-                JdotqdotStance << right_toe_jacodotv;
-                JqdotStance << alpha*right_toe_Jqdot;
-                beq_slack2 << -JdotqdotStance-JqdotStance;
-                Aeq_slack2 << JStance, -I;
-                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
-
-                // stance leg cost
-                Q_slack2.setIdentity();
-                Q_slack2 *= W5;
-                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
-
-                // swing leg constraint
-                double dis_x = next_stance[0] - left_toe_pos[0];
-                double dis_y = next_stance[1] - left_toe_pos[1];
-                xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
-                yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
-                    zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
-                    Xddot << xddot, yddot, zddot;
-                }
-                else{
-                    zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
-                    if (phi[0] < contact_phi)
-                        Xddot << 0, 0, zddot;
-                    else
+                    // swing leg constraint
+                    double dis_x = next_stance[0] - left_toe_pos[0];
+                    double dis_y = next_stance[1] - left_toe_pos[1];
+                    xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
+                    yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
+                    if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
+                        zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
                         Xddot << xddot, yddot, zddot;
+                    }
+                    else{
+                        zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                        if (phi[0] < contact_phi)
+                            Xddot << 0, 0, zddot;
+                        else
+                            Xddot << xddot, yddot, zddot;
+                    }
+                    JSwing << left_toe_jaco;
+                    JdotqdotSwing << left_toe_jacodotv;
+                    Aeq_slack3 << JSwing, -I;
+                    beq_slack3 << Xddot-JdotqdotSwing;
+                    this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                    // swing leg cost
+                    Q_slack3.setIdentity();
+                    Q_slack3 *= W6;
+                    this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
                 }
-                JSwing << left_toe_jaco;
-                JdotqdotSwing << left_toe_jacodotv;
-                Aeq_slack3 << JSwing, -I;
-                beq_slack3 << Xddot-JdotqdotSwing;
-                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+                count_num_change = false;
+            } else {
+                if (count_num == count) {
+                    if (count_num_change) {
+                        if (left_is_stance && count==1) {
+                            // stance leg constraint
+                            std::cout << "=======left is stance========" << std::endl;
+                            JStance << left_toe_jaco;
+                            JdotqdotStance << left_toe_jacodotv;
+                            JqdotStance << alpha*left_toe_Jqdot;
+                            beq_slack2 << -JdotqdotStance-JqdotStance;
+                            Aeq_slack2 << JStance, -I;
+                            this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
 
-                // swing leg cost
-                Q_slack3.setIdentity();
-                Q_slack3 *= W6;
-                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
-            } else { // right stance impact phase
-                cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
-                // stance leg constraint
-                std::cout << "=======right is stance==impact phase======" << std::endl;
-                JStance << left_toe_jaco;
-                JdotqdotStance << left_toe_jacodotv;
-                JqdotStance << alpha*left_toe_Jqdot;
-                beq_slack2 << -JdotqdotStance-JqdotStance;
-                Aeq_slack2 << JStance, -I;
-                this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+                            // stance leg cost
+                            Q_slack2.setIdentity();
+                            Q_slack2 *= W5;
+                            this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
-                // stance leg cost
-                Q_slack2.setIdentity();
-                Q_slack2 *= W5i;
-                this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+                            // swing leg constraint
+                            double dis_x = next_stance[0] - right_toe_pos[0];
+                            double dis_y = next_stance[1] - right_toe_pos[1];
+                            xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
+                            yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
+                            if (fabs(dis_x) + fabs(dis_y) >= THRESH){
+                                zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
+                                Xddot << xddot, yddot, zddot;
+                            }
+                            else{
+                                zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                                if (phi[1] < contact_phi)
+                                    Xddot << 0, 0, zddot;
+                                else
+                                    Xddot << xddot, yddot, zddot;
+                            }
+                            JSwing << right_toe_jaco;
+                            JdotqdotSwing << right_toe_jacodotv;
+                            Aeq_slack3 << JSwing, -I;
+                            beq_slack3 << Xddot-JdotqdotSwing;
+                            this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
 
-                // swing leg constraint
-                double dis_x = next_stance[0] - right_toe_pos[0];
-                double dis_y = next_stance[1] - right_toe_pos[1];
-                xddot = Kpxi*dis_x-Kdxi*right_toe_Jqdot[0];
-                yddot = Kpyi*dis_y-Kdyi*right_toe_Jqdot[1];
-                zddot = KpzUPi * (ZH - right_toe_pos[2]) - KdzUPi * right_toe_Jqdot[2];
-                Xddot << xddot, yddot, zddot;
-                JSwing << right_toe_jaco;
-                JdotqdotSwing << right_toe_jacodotv;
-                Aeq_slack3 << JSwing, -I;
-                beq_slack3 << Xddot-JdotqdotSwing;
-                this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+                            // swing leg cost
+                            Q_slack3.setIdentity();
+                            Q_slack3 *= W6;
+                            this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
-                // swing leg cost
-                Q_slack3.setIdentity();
-                Q_slack3 *= W6i;
-                this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+                        } else if (left_is_stance && count==2) { // left stance impact phase
+                            // stance leg constraint
+                            cout << "======left is stance==impact pahse======" << endl;
+                            JStance << right_toe_jaco;
+                            JdotqdotStance << right_toe_jacodotv;
+                            JqdotStance << alpha*right_toe_Jqdot;
+                            beq_slack2 << -JdotqdotStance-JqdotStance;
+                            Aeq_slack2 << JStance, -I;
+                            this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
 
+                            // stance leg cost
+                            Q_slack2.setIdentity();
+                            Q_slack2 *= W5i;
+                            this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                            // swing leg constraint
+                            double dis_x = next_stance[0] - left_toe_pos[0];
+                            double dis_y = next_stance[1] - left_toe_pos[1];
+                            xddot = Kpxi*dis_x-Kdxi*left_toe_Jqdot[0];
+                            yddot = Kpyi*dis_y-Kdyi*left_toe_Jqdot[1];
+                            zddot = KpzUPi * (ZH - left_toe_pos[2]) - KdzUPi * left_toe_Jqdot[2];
+                            Xddot << xddot, yddot, zddot;
+                            JSwing << left_toe_jaco;
+                            JdotqdotSwing << left_toe_jacodotv;
+                            Aeq_slack3 << JSwing, -I;
+                            beq_slack3 << Xddot-JdotqdotSwing;
+                            this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                            // swing leg cost
+                            Q_slack3.setIdentity();
+                            Q_slack3 *= W6i;
+                            this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                        } else if (!left_is_stance && count==1) {
+                            // stance leg constraint
+                            cout << "======right is stance========" << endl;
+                            JStance << right_toe_jaco;
+                            JdotqdotStance << right_toe_jacodotv;
+                            JqdotStance << alpha*right_toe_Jqdot;
+                            beq_slack2 << -JdotqdotStance-JqdotStance;
+                            Aeq_slack2 << JStance, -I;
+                            this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                            // stance leg cost
+                            Q_slack2.setIdentity();
+                            Q_slack2 *= W5;
+                            this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                            // swing leg constraint
+                            double dis_x = next_stance[0] - left_toe_pos[0];
+                            double dis_y = next_stance[1] - left_toe_pos[1];
+                            xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
+                            yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
+                            if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
+                                zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
+                                Xddot << xddot, yddot, zddot;
+                            }
+                            else{
+                                zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                                if (phi[0] < contact_phi)
+                                    Xddot << 0, 0, zddot;
+                                else
+                                    Xddot << xddot, yddot, zddot;
+                            }
+                            JSwing << left_toe_jaco;
+                            JdotqdotSwing << left_toe_jacodotv;
+                            Aeq_slack3 << JSwing, -I;
+                            beq_slack3 << Xddot-JdotqdotSwing;
+                            this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                            // swing leg cost
+                            Q_slack3.setIdentity();
+                            Q_slack3 *= W6;
+                            this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+                        } else { // right stance impact phase
+                            cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
+                            // stance leg constraint
+                            std::cout << "=======right is stance==impact phase======" << std::endl;
+                            JStance << left_toe_jaco;
+                            JdotqdotStance << left_toe_jacodotv;
+                            JqdotStance << alpha*left_toe_Jqdot;
+                            beq_slack2 << -JdotqdotStance-JqdotStance;
+                            Aeq_slack2 << JStance, -I;
+                            this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                            // stance leg cost
+                            Q_slack2.setIdentity();
+                            Q_slack2 *= W5i;
+                            this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                            // swing leg constraint
+                            double dis_x = next_stance[0] - right_toe_pos[0];
+                            double dis_y = next_stance[1] - right_toe_pos[1];
+                            xddot = Kpxi*dis_x-Kdxi*right_toe_Jqdot[0];
+                            yddot = Kpyi*dis_y-Kdyi*right_toe_Jqdot[1];
+                            zddot = KpzUPi * (ZH - right_toe_pos[2]) - KdzUPi * right_toe_Jqdot[2];
+                            Xddot << xddot, yddot, zddot;
+                            JSwing << right_toe_jaco;
+                            JdotqdotSwing << right_toe_jacodotv;
+                            Aeq_slack3 << JSwing, -I;
+                            beq_slack3 << Xddot-JdotqdotSwing;
+                            this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                            // swing leg cost
+                            Q_slack3.setIdentity();
+                            Q_slack3 *= W6i;
+                            this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                        }
+                    } else {
+                        if (left_is_stance) {  // if left is the stance leg, then swing
+                            // stance leg constraint
+                            std::cout << "=======left is stance========" << std::endl;
+                            JStance << left_toe_jaco;
+                            JdotqdotStance << left_toe_jacodotv;
+                            JqdotStance << alpha*left_toe_Jqdot;
+                            beq_slack2 << -JdotqdotStance-JqdotStance;
+                            Aeq_slack2 << JStance, -I;
+                            this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                            // stance leg cost
+                            Q_slack2.setIdentity();
+                            Q_slack2 *= W5;
+                            this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                            // swing leg constraint
+                            double dis_x = next_stance[0] - right_toe_pos[0];
+                            double dis_y = next_stance[1] - right_toe_pos[1];
+                            xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
+                            yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
+                            if (fabs(dis_x) + fabs(dis_y) >= THRESH){
+                                zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
+                                Xddot << xddot, yddot, zddot;
+                            }
+                            else{
+                                zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                                if (phi[1] < contact_phi)
+                                    Xddot << 0, 0, zddot;
+                                else
+                                    Xddot << xddot, yddot, zddot;
+                            }
+                            JSwing << right_toe_jaco;
+                            JdotqdotSwing << right_toe_jacodotv;
+                            Aeq_slack3 << JSwing, -I;
+                            beq_slack3 << Xddot-JdotqdotSwing;
+                            this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                            // swing leg cost
+                            Q_slack3.setIdentity();
+                            Q_slack3 *= W6;
+                            this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+
+                        } else {    // if right is the stance leg, then swing
+                            // stance leg constraint
+                            cout << "======right is stance========" << endl;
+                            JStance << right_toe_jaco;
+                            JdotqdotStance << right_toe_jacodotv;
+                            JqdotStance << alpha*right_toe_Jqdot;
+                            beq_slack2 << -JdotqdotStance-JqdotStance;
+                            Aeq_slack2 << JStance, -I;
+                            this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                            // stance leg cost
+                            Q_slack2.setIdentity();
+                            Q_slack2 *= W5;
+                            this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                            // swing leg constraint
+                            double dis_x = next_stance[0] - left_toe_pos[0];
+                            double dis_y = next_stance[1] - left_toe_pos[1];
+                            xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
+                            yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
+                            if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
+                                zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
+                                Xddot << xddot, yddot, zddot;
+                            }
+                            else{
+                                zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                                if (phi[0] < contact_phi)
+                                    Xddot << 0, 0, zddot;
+                                else
+                                    Xddot << xddot, yddot, zddot;
+                            }
+                            JSwing << left_toe_jaco;
+                            JdotqdotSwing << left_toe_jacodotv;
+                            Aeq_slack3 << JSwing, -I;
+                            beq_slack3 << Xddot-JdotqdotSwing;
+                            this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                            // swing leg cost
+                            Q_slack3.setIdentity();
+                            Q_slack3 *= W6;
+                            this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+                        }
+                    }
+                } else {
+                    count_num_change = true;
+                    if (left_is_stance && count==1) {
+                        // stance leg constraint
+                        std::cout << "=======left is stance========" << std::endl;
+                        JStance << left_toe_jaco;
+                        JdotqdotStance << left_toe_jacodotv;
+                        JqdotStance << alpha*left_toe_Jqdot;
+                        beq_slack2 << -JdotqdotStance-JqdotStance;
+                        Aeq_slack2 << JStance, -I;
+                        this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                        // stance leg cost
+                        Q_slack2.setIdentity();
+                        Q_slack2 *= W5;
+                        this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                        // swing leg constraint
+                        double dis_x = next_stance[0] - right_toe_pos[0];
+                        double dis_y = next_stance[1] - right_toe_pos[1];
+                        xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
+                        yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
+                        if (fabs(dis_x) + fabs(dis_y) >= THRESH){
+                            zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
+                            Xddot << xddot, yddot, zddot;
+                        }
+                        else{
+                            zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                            if (phi[1] < contact_phi)
+                                Xddot << 0, 0, zddot;
+                            else
+                                Xddot << xddot, yddot, zddot;
+                        }
+                        JSwing << right_toe_jaco;
+                        JdotqdotSwing << right_toe_jacodotv;
+                        Aeq_slack3 << JSwing, -I;
+                        beq_slack3 << Xddot-JdotqdotSwing;
+                        this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                        // swing leg cost
+                        Q_slack3.setIdentity();
+                        Q_slack3 *= W6;
+                        this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                    } else if (left_is_stance && count==2) { // left stance impact phase
+                        // stance leg constraint
+                        cout << "======left is stance==impact pahse======" << endl;
+                        JStance << right_toe_jaco;
+                        JdotqdotStance << right_toe_jacodotv;
+                        JqdotStance << alpha*right_toe_Jqdot;
+                        beq_slack2 << -JdotqdotStance-JqdotStance;
+                        Aeq_slack2 << JStance, -I;
+                        this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                        // stance leg cost
+                        Q_slack2.setIdentity();
+                        Q_slack2 *= W5i;
+                        this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                        // swing leg constraint
+                        double dis_x = next_stance[0] - left_toe_pos[0];
+                        double dis_y = next_stance[1] - left_toe_pos[1];
+                        xddot = Kpxi*dis_x-Kdxi*left_toe_Jqdot[0];
+                        yddot = Kpyi*dis_y-Kdyi*left_toe_Jqdot[1];
+                        zddot = KpzUPi * (ZH - left_toe_pos[2]) - KdzUPi * left_toe_Jqdot[2];
+                        Xddot << xddot, yddot, zddot;
+                        JSwing << left_toe_jaco;
+                        JdotqdotSwing << left_toe_jacodotv;
+                        Aeq_slack3 << JSwing, -I;
+                        beq_slack3 << Xddot-JdotqdotSwing;
+                        this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                        // swing leg cost
+                        Q_slack3.setIdentity();
+                        Q_slack3 *= W6i;
+                        this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                    } else if (!left_is_stance && count==1) {
+                        // stance leg constraint
+                        cout << "======right is stance========" << endl;
+                        JStance << right_toe_jaco;
+                        JdotqdotStance << right_toe_jacodotv;
+                        JqdotStance << alpha*right_toe_Jqdot;
+                        beq_slack2 << -JdotqdotStance-JqdotStance;
+                        Aeq_slack2 << JStance, -I;
+                        this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                        // stance leg cost
+                        Q_slack2.setIdentity();
+                        Q_slack2 *= W5;
+                        this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                        // swing leg constraint
+                        double dis_x = next_stance[0] - left_toe_pos[0];
+                        double dis_y = next_stance[1] - left_toe_pos[1];
+                        xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
+                        yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
+                        if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
+                            zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
+                            Xddot << xddot, yddot, zddot;
+                        }
+                        else{
+                            zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                            if (phi[0] < contact_phi)
+                                Xddot << 0, 0, zddot;
+                            else
+                                Xddot << xddot, yddot, zddot;
+                        }
+                        JSwing << left_toe_jaco;
+                        JdotqdotSwing << left_toe_jacodotv;
+                        Aeq_slack3 << JSwing, -I;
+                        beq_slack3 << Xddot-JdotqdotSwing;
+                        this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                        // swing leg cost
+                        Q_slack3.setIdentity();
+                        Q_slack3 *= W6;
+                        this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+                    } else { // right stance impact phase
+                        cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
+                        // stance leg constraint
+                        std::cout << "=======right is stance==impact phase======" << std::endl;
+                        JStance << left_toe_jaco;
+                        JdotqdotStance << left_toe_jacodotv;
+                        JqdotStance << alpha*left_toe_Jqdot;
+                        beq_slack2 << -JdotqdotStance-JqdotStance;
+                        Aeq_slack2 << JStance, -I;
+                        this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
+
+                        // stance leg cost
+                        Q_slack2.setIdentity();
+                        Q_slack2 *= W5i;
+                        this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
+
+                        // swing leg constraint
+                        double dis_x = next_stance[0] - right_toe_pos[0];
+                        double dis_y = next_stance[1] - right_toe_pos[1];
+                        xddot = Kpxi*dis_x-Kdxi*right_toe_Jqdot[0];
+                        yddot = Kpyi*dis_y-Kdyi*right_toe_Jqdot[1];
+                        zddot = KpzUPi * (ZH - right_toe_pos[2]) - KdzUPi * right_toe_Jqdot[2];
+                        Xddot << xddot, yddot, zddot;
+                        JSwing << right_toe_jaco;
+                        JdotqdotSwing << right_toe_jacodotv;
+                        Aeq_slack3 << JSwing, -I;
+                        beq_slack3 << Xddot-JdotqdotSwing;
+                        this->con_slack3_->UpdateCoefficients(Aeq_slack3, beq_slack3);
+
+                        // swing leg cost
+                        Q_slack3.setIdentity();
+                        Q_slack3 *= W6i;
+                        this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                    }
+                }
             }
+
+
 
             // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
