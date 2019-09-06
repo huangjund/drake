@@ -36,35 +36,38 @@
 #define alpha 0
 #define ZH 0.1 // the desired z height of foot toe
 #define contact_phi 1e-3
-#define W1 5e4
+#define W1 1e5
 #define W2 0
 #define W3 0
-#define W4 2e3
+#define W4 0
 #define W5 1e8
 #define W6 1e5
-#define W5i 1e5
-#define W6i 1e5
-#define KPXDDX 500
-#define KDXDDX 150
-#define KPXDDY 100
-#define KDXDDY 10
-#define KPXDDZ 50
-#define KDXDDZ 20
-#define Kpx 16 // the Kp of foot coordinate x
-#define Kdx 4.2 // the Kd of foot coordinate x
-#define Kpy 16 // the Kp of foot coordinate y
-#define Kdy 4 // the Kd of foot coordinate y
-#define KpzUP 49 // the Kp of foot coordinate z
-#define KdzUP 7 // the Kd of foot coordinate z
-#define KpzDOWN 2
-#define KdzDOWN 50
-#define Kpxi 1 // the Kp of foot coordinate x
+#define W5i 1e5 // prevent front leg from slipping after touching ground
+#define W6i 1e8
+
+#define KPXDDX 1
+#define KDXDDX 0
+#define KPXDDY 1
+#define KDXDDY 0
+#define KPXDDZ 10 // increase to decrease height vs x
+#define KDXDDZ 0
+
+#define Kpx 1// the Kp of foot coordinate x
+#define Kdx 0 // the Kd of foot coordinate x
+#define Kpy 1 // the Kp of foot coordinate y
+#define Kdy 0 // the Kd of foot coordinate y
+#define KpzUP 1 //the Kp of foot coordinate z
+#define KdzUP 0 // the Kd of foot coordinate z
+#define KpzDOWN 1
+#define KdzDOWN 0
+#define Kpxi 1// the Kp of foot coordinate x
 #define Kdxi 0 // the Kd of foot coordinate x
 #define Kpyi 1 // the Kp of foot coordinate y
 #define Kdyi 0 // the Kd of foot coordinate y
-#define KpzUPi 5 // the Kp of foot coordinate z
+#define KpzUPi 1 // the Kp of foot coordinate z
 #define KdzUPi 0 // the Kd of foot coordinate z
 #define THRESH 0.5 // the threshhold of zdot decrease
+#define COMZ 0.656 // replanning threshold of com z
 
 namespace drake {
 namespace examples {
@@ -272,6 +275,8 @@ namespace qpControl {
             this->left_is_stance = ds_state(6,0);
             x_yaw_des[1] = 0;
 
+            if (xcom_des(2,0) < COMZ)
+                xcom_des(2,0) = (xcom_des(2,0)+COMZ)/2.;
             // create the current kinematic cache
             auto kinsol = (this->rtree_)->doKinematics(q, qd);
             Vector3<double> toe_collision_bias(0, 0, -0.5);
@@ -417,7 +422,7 @@ namespace qpControl {
                 if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
                     count_num = count;
                     // stance leg constraint
-                    std::cout << "=======left is stance========" << std::endl;
+                    std::cout << "=======left is stance===1=====" << std::endl;
                     JStance << left_toe_jaco;
                     JdotqdotStance << left_toe_jacodotv;
                     JqdotStance << alpha*left_toe_Jqdot;
@@ -460,7 +465,7 @@ namespace qpControl {
                 } else {    // if the trajectory is new and right is the stance leg then to swing phase
                     count_num = count;
                     // stance leg constraint
-                    cout << "======right is stance========" << endl;
+                    cout << "======right is stance===2=====" << endl;
                     JStance << right_toe_jaco;
                     JdotqdotStance << right_toe_jacodotv;
                     JqdotStance << alpha*right_toe_Jqdot;
@@ -507,7 +512,7 @@ namespace qpControl {
                     if (count_num_change) {
                         if (left_is_stance && count==1) {
                             // stance leg constraint
-                            std::cout << "=======left is stance========" << std::endl;
+                            std::cout << "=======left is stance====3====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
                             JqdotStance << alpha*left_toe_Jqdot;
@@ -549,7 +554,7 @@ namespace qpControl {
 
                         } else if (left_is_stance && count==2) { // left stance impact phase
                             // stance leg constraint
-                            cout << "======left is stance==impact pahse======" << endl;
+                            cout << "======left is stance==impact pahse===4===" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
                             JqdotStance << alpha*right_toe_Jqdot;
@@ -582,7 +587,7 @@ namespace qpControl {
 
                         } else if (!left_is_stance && count==1) {
                             // stance leg constraint
-                            cout << "======right is stance========" << endl;
+                            cout << "======right is stance===5=====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
                             JqdotStance << alpha*right_toe_Jqdot;
@@ -624,7 +629,7 @@ namespace qpControl {
                         } else { // right stance impact phase
                             cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
                             // stance leg constraint
-                            std::cout << "=======right is stance==impact phase======" << std::endl;
+                            std::cout << "=======right is stance==impact phase==6====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
                             JqdotStance << alpha*left_toe_Jqdot;
@@ -659,7 +664,7 @@ namespace qpControl {
                     } else {
                         if (left_is_stance) {  // if left is the stance leg, then swing
                             // stance leg constraint
-                            std::cout << "=======left is stance========" << std::endl;
+                            std::cout << "=======left is stance===7=====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
                             JqdotStance << alpha*left_toe_Jqdot;
@@ -702,7 +707,7 @@ namespace qpControl {
 
                         } else {    // if right is the stance leg, then swing
                             // stance leg constraint
-                            cout << "======right is stance========" << endl;
+                            cout << "======right is stance====8====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
                             JqdotStance << alpha*right_toe_Jqdot;
@@ -747,7 +752,7 @@ namespace qpControl {
                     count_num_change = true;
                     if (left_is_stance && count==1) {
                         // stance leg constraint
-                        std::cout << "=======left is stance========" << std::endl;
+                        std::cout << "=======left is stance===9=====" << std::endl;
                         JStance << left_toe_jaco;
                         JdotqdotStance << left_toe_jacodotv;
                         JqdotStance << alpha*left_toe_Jqdot;
@@ -789,7 +794,7 @@ namespace qpControl {
 
                     } else if (left_is_stance && count==2) { // left stance impact phase
                         // stance leg constraint
-                        cout << "======left is stance==impact pahse======" << endl;
+                        cout << "======left is stance==impact pahse====10==" << endl;
                         JStance << right_toe_jaco;
                         JdotqdotStance << right_toe_jacodotv;
                         JqdotStance << alpha*right_toe_Jqdot;
@@ -822,7 +827,7 @@ namespace qpControl {
 
                     } else if (!left_is_stance && count==1) {
                         // stance leg constraint
-                        cout << "======right is stance========" << endl;
+                        cout << "======right is stance====11====" << endl;
                         JStance << right_toe_jaco;
                         JdotqdotStance << right_toe_jacodotv;
                         JqdotStance << alpha*right_toe_Jqdot;
@@ -864,7 +869,7 @@ namespace qpControl {
                     } else { // right stance impact phase
                         cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
                         // stance leg constraint
-                        std::cout << "=======right is stance==impact phase======" << std::endl;
+                        std::cout << "=======right is stance==impact phase==12====" << std::endl;
                         JStance << left_toe_jaco;
                         JdotqdotStance << left_toe_jacodotv;
                         JqdotStance << alpha*left_toe_Jqdot;

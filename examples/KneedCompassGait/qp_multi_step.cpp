@@ -27,7 +27,7 @@
 #include "drake/examples/KneedCompassGait/system.h"
 
 #define TIME_RATE 0.5
-#define SIMULATION_TIME 1.5
+#define SIMULATION_TIME 0.35
 namespace drake {
 namespace examples {
 namespace qpControl {
@@ -76,7 +76,7 @@ namespace qpControl {
         U << 1.25, 0, 0, 0, 0, 0;
         auto motion = base_builder.AddSystem<linear_system::LinearSystem>(U);
         Eigen::Matrix<double, 6, 1> X0;
-        X0 << 1, 0, 0.65, 1, 0, 0;
+        X0 << 1, 0, 0.65, 1, 0, 0.2;
         std::vector<double> step_lengths = {0.5, 0.5, 0.5, 0.5};
         std::vector<double> change_in_yaw = {0, 0, 0, 0};
         motion->set_name("motion generator");

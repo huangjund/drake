@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <iomanip>
 
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/leaf_system.h"
@@ -17,9 +18,9 @@ namespace linear_system {
         double x_out;
         LinearSystem(Eigen::Matrix<double, Eigen::Dynamic, 1> _U) {
             this->DeclareVectorOutputPort("y", drake::systems::BasicVector<double>(sz),
-                                    &LinearSystem::CopyStateOut);
+                                          &LinearSystem::CopyStateOut);
             this->DeclareVectorOutputPort("foot_step", drake::systems::BasicVector<double>(8),
-                    &LinearSystem::CopyDiscreteStateOut);
+                                          &LinearSystem::CopyDiscreteStateOut);
             this->DeclarePerStepUnrestrictedUpdateEvent(&LinearSystem::Update);
             this->DeclareContinuousState(sz);  // One state variable.
             this->DeclareDiscreteState(8);
@@ -82,6 +83,7 @@ namespace linear_system {
             while (time < t - h) {
                 xdot = A * X + B * U;
                 X = X + xdot * h;
+                X(5,0) = A(2,3)*X(3,0)+A(2,4)*X(4,0);
                 if (X(0, 0) > switch_x) {
                     yaw = 0;
                     X(3, 0) =
@@ -98,6 +100,11 @@ namespace linear_system {
                     surf += 1;
                 }
                 time = time + h;
+                for (int i = 0; i < 6; ++i) {
+                    std::cout << std::fixed<<std::setprecision(6)<< X[i] <<"\t";
+                }
+
+                std::cout << "\n";
             }
             // context.SetContinuousState(X);
             for (int i = 0; i < sz; i++) {
@@ -113,11 +120,12 @@ namespace linear_system {
             temp << X;
             temp(0,0) = -temp(0,0);
             temp(3,0) = -temp(3,0);
+            temp(5,0) = -temp(5,0);
             output->SetFromVector(temp);
         }
 
         void CopyDiscreteStateOut(const drake::systems::Context<double>& context,
-                drake::systems::BasicVector<double>* output) const {
+                                  drake::systems::BasicVector<double>* output) const {
             auto d_state = context.get_discrete_state().get_vector().CopyToVector();
             output->SetFromVector(d_state);
         }
