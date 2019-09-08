@@ -116,6 +116,10 @@ drake_cc_library(
         "qpController2.h",
         "system.h",
     ],
+    data = [
+        "data.txt",
+        "data2.txt",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":KCG_common",

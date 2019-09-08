@@ -6,6 +6,8 @@
 #include <memory>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <vector>
 
 #include "drake/examples/KneedCompassGait/KCG_common.h"
 #include "drake/examples/KneedCompassGait/gen/KneedCompassGait_ContinuousState.h"
@@ -36,7 +38,7 @@
 #define alpha 0
 #define ZH 0.1 // the desired z height of foot toe
 #define contact_phi 1e-3
-#define W1 1e5
+#define W1 4e5
 #define W2 0
 #define W3 0
 #define W4 0
@@ -46,28 +48,28 @@
 #define W6i 1e8
 
 #define KPXDDX 1
-#define KDXDDX 0
+#define KDXDDX 100
 #define KPXDDY 1
 #define KDXDDY 0
-#define KPXDDZ 10 // increase to decrease height vs x
-#define KDXDDZ 0
+#define KPXDDZ 5e2 // increase to decrease height vs x
+#define KDXDDZ 30
 
-#define Kpx 1// the Kp of foot coordinate x
-#define Kdx 0 // the Kd of foot coordinate x
+#define Kpx 2// the Kp of foot coordinate x
+#define Kdx 1 // the Kd of foot coordinate x
 #define Kpy 1 // the Kp of foot coordinate y
 #define Kdy 0 // the Kd of foot coordinate y
-#define KpzUP 1 //the Kp of foot coordinate z
-#define KdzUP 0 // the Kd of foot coordinate z
-#define KpzDOWN 1
-#define KdzDOWN 0
+#define KpzUP 50 //the Kp of foot coordinate z
+#define KdzUP 10 // the Kd of foot coordinate z
+#define KpzDOWN 54.5
+#define KdzDOWN 0.5
 #define Kpxi 1// the Kp of foot coordinate x
 #define Kdxi 0 // the Kd of foot coordinate x
 #define Kpyi 1 // the Kp of foot coordinate y
 #define Kdyi 0 // the Kd of foot coordinate y
-#define KpzUPi 1 // the Kp of foot coordinate z
-#define KdzUPi 0 // the Kd of foot coordinate z
+#define KpzUPi 1e3 // the Kp of foot coordinate z, consistent
+#define KdzUPi 1e2// the Kd of foot coordinate z
 #define THRESH 0.5 // the threshhold of zdot decrease
-#define COMZ 0.656 // replanning threshold of com z
+#define COMZ 0 // replanning threshold of com z
 
 namespace drake {
 namespace examples {
@@ -116,6 +118,44 @@ namespace qpControl {
 
             Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
+
+            std::ifstream ifstr_data("examples/KneedCompassGait/data.txt");
+            double temp_data;
+            std::vector<std::vector<double>> mat;
+            std::vector<double> one_row(6,0);
+
+            for (int j = 0; !ifstr_data.eof() ; ++j) {
+                for (int i = 0; i < 6; ++i) {
+                    ifstr_data >> temp_data;
+                    one_row[i] = temp_data;
+                }
+                mat.push_back(one_row);
+            }
+            ifstr_data.close();
+
+            std::ifstream ifstr_data2("examples/KneedCompassGait/data2.txt");
+            std::vector<std::vector<double>> mat2;
+            std::vector<double> one_row2(8,0);
+
+            for (int j = 0; !ifstr_data2.eof() ; ++j) {
+                for (int i = 0; i < 8; ++i) {
+                    ifstr_data2 >> temp_data;
+                    one_row2[i] = temp_data;
+                }
+                mat2.push_back(one_row2);
+            }
+            ifstr_data2.close();
+
+            this->trajectory_ = mat;
+            this->foot_step_ = mat2;
+//
+//            for (int k = 0; k < 100; ++k) {
+//                for (int i = 0; i < 6;  ++i) {
+//                    std::cout << std::fixed << std::setprecision(5) << trajectory_[k][i];
+//                    std::cout << "\t" << foot_step_[k][i] << std::endl;
+//                }
+//
+//            }
 
             // add decision variables--------------------------------------------------------------------
             auto vdot = prog.NewContinuousVariables(NV, "joint acceleration"); // qddot var
@@ -251,28 +291,23 @@ namespace qpControl {
             using std::endl;
             static Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
+            static int m=0;
 
-          //  auto utime = context.get_time()*1000000;
+            t = context.get_time();
 
           // get the current state and current disired trajectory
             VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
-            VectorX<double> traj = this->EvalVectorInput(context, 1)->CopyToVector();
-            VectorX<double> ds_state = this->EvalVectorInput(context, 2)->CopyToVector();
+//            VectorX<double> traj = this->EvalVectorInput(context, 1)->CopyToVector();
+//            VectorX<double> ds_state = this->EvalVectorInput(context, 2)->CopyToVector();
             VectorX<double> xcom_des(COM), x_yaw_des(1); // qd_des(NV),
             VectorX<double> q(NQ), qd(NV);
             VectorX<double> this_stance(3),next_stance(3);
 
             for (int i = 0; i < NQ; ++i) {
-                if (i < COM)
-                    xcom_des[i] = traj[i];
-                if (i < 3){
-                    this_stance[i] = ds_state[i];
-                    next_stance[i] = ds_state[i+3];
-                }
                 q[i] = x[i];
                 qd[i] = x[i+NQ];
             }
-            this->left_is_stance = ds_state(6,0);
+            this->left_is_stance = foot_step_[m++][6];
             x_yaw_des[1] = 0;
 
             if (xcom_des(2,0) < COMZ)
@@ -306,8 +341,33 @@ namespace qpControl {
             auto vcom = Jcom*qd;
             Eigen::VectorXd phi;
             contactDistances(*(this->rtree_), kinsol, *(this->lfoot_), *(this->rfoot_), phi);
-//            cout << "phi1:" << phi[0] << "\tphi2:" << phi[1] << endl;
 
+            static bool replanning = false;
+            static double stance_now=-1.25;
+            static bool isNew = false;
+
+            if (replanning)
+                while (!isNew) {
+                    this_stance[0] = foot_step_[m++][0];
+                    cout << "stance now:\t" << stance_now <<"\tthis_stance\t:" << this_stance[0] << endl;
+                    if (stance_now == this_stance[0])
+                        isNew = false;
+                    else
+                        isNew = true;
+                    stance_now = this_stance[0];
+                }
+            this->left_is_stance = foot_step_[m][6];
+            replanning = false;
+
+            cout << "============================================" << m << "============================="<< endl;
+            for (int l = 0; l < COM; ++l) {
+                if (l < COM)
+                    xcom_des[l] = trajectory_[m][l];
+                if (l < 3){
+                    this_stance[l] = foot_step_[m][l];
+                    next_stance[l] = foot_step_[m][l+3];
+                }
+            }
             // foot dynamics
             auto left_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 7, 0, true);
             auto right_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 11, 0, true);
@@ -355,7 +415,6 @@ namespace qpControl {
             Vector1<double> Aeq_yaw(1);
             Vector1<double> beq_yaw(q[5]);
             this->con_yaw_->UpdateCoefficients(Aeq_yaw, beq_yaw);
-
 
             // Problem Costs ---------------------------------------------------------------------------
             auto kp = this->Kp_xdd_;
@@ -406,14 +465,6 @@ namespace qpControl {
             Eigen::Matrix<double, 3, 3> Q_slack3;
             double xddot, yddot, zddot;
 
-            static double stance_now=-0.75;
-            static bool isNew = false;
-            if (stance_now == this_stance[0])
-                isNew = false;
-            else
-                isNew = true;
-            stance_now = this_stance[0];
-            
             static int count_num = count;
             static bool count_num_change = false;
             cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
@@ -507,11 +558,13 @@ namespace qpControl {
 
                 }
                 count_num_change = false;
+                isNew = false;
             } else {
                 if (count_num == count) {
                     if (count_num_change) {
                         if (left_is_stance && count==1) {
                             // stance leg constraint
+                            replanning = true;
                             std::cout << "=======left is stance====3====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
@@ -587,6 +640,7 @@ namespace qpControl {
 
                         } else if (!left_is_stance && count==1) {
                             // stance leg constraint
+                            replanning = true;
                             cout << "======right is stance===5=====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
@@ -628,7 +682,7 @@ namespace qpControl {
                             this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
                         } else { // right stance impact phase
                             cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
-                            // stance leg constraint
+                            // stance leg constraint/**/
                             std::cout << "=======right is stance==impact phase==6====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
@@ -904,8 +958,6 @@ namespace qpControl {
                 }
             }
 
-
-
             // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
@@ -974,6 +1026,7 @@ namespace qpControl {
 
         void CopyCommandOutSim(const systems::Context<double>& context,
                              drake::examples::KneedCompassGait::KcgInput<double>* output) const {
+            t = context.get_time();
             output->set_hrtau(context.get_discrete_state()[0]);
             output->set_htau(context.get_discrete_state()[1]);
             output->set_ltau(context.get_discrete_state()[2]);
@@ -981,8 +1034,9 @@ namespace qpControl {
             output->set_rtau(context.get_discrete_state()[4]);
         }
 
-        void COM_ToeOutPut(const systems::Context<double>& ,
+        void COM_ToeOutPut(const systems::Context<double>& context,
                            systems::BasicVector<double>* output) const {
+            t = context.get_time();
             output->SetFromVector(COM_FOOT);
         }
 
@@ -1121,6 +1175,8 @@ namespace qpControl {
         int neps; // number of slack variables for contact
         bool initialized;
         mutable bool left_is_stance;
+        std::vector<std::vector<double>> trajectory_;
+        std::vector<std::vector<double>> foot_step_;
         Eigen::Matrix<double, NU, NU> weight_t_;
         Eigen::Matrix<double, 1, 1> weight_yaw_;
         Eigen::Matrix<double, 2, 2> weight_slack_;
@@ -1153,6 +1209,7 @@ namespace qpControl {
         std::unique_ptr<RigidBodyTree<double>> rtree_;
         RigidBody<double>* lfoot_;
         RigidBody<double>* rfoot_;
+        mutable double t;
     };
 }
 }

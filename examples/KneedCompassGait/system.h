@@ -62,7 +62,7 @@ namespace linear_system {
         double g = 9.81;
         mutable int step = 0;
         mutable double yaw = 0;
-        mutable bool left = true;
+        mutable bool left = false;
         std::vector<double> step_lengths;
         std::vector<double> change_in_yaw;
         static const int sz = 6;
@@ -71,13 +71,14 @@ namespace linear_system {
         Eigen::Matrix<double, 3, 3> zero, identity;
         mutable Eigen::Matrix<double, 6, 1> X;
         mutable Eigen::Matrix<double, 6, 1> xdot;
-        double h = 0.005;
+        double h = 0.0005;
         mutable double time = 0, switch_x, t;
         mutable int surf = 1;
         // xdot = -x + x³
         void DoCalcTimeDerivatives(
                 const drake::systems::Context<double>& context,
                 drake::systems::ContinuousState<double>* derivatives) const override {
+            auto d_state = context.get_discrete_state().get_vector().CopyToVector();
             switch_x = U(0, 0) + step_lengths[step]/2;
             t = context.get_time();
             while (time < t - h) {
@@ -95,16 +96,24 @@ namespace linear_system {
                     surf += 1;
                 }
                 if (X(0, 0) > U(0, 0) && surf % 2 == 1) {
-                    std::cout << "=====================switch====================" << std::endl;
+ //                   std::cout << "=====================switch====================" << std::endl;
                     CalculateAB(-0.2, -0.2, 0.7);
                     surf += 1;
                 }
                 time = time + h;
-                for (int i = 0; i < 6; ++i) {
-                    std::cout << std::fixed<<std::setprecision(6)<< X[i] <<"\t";
-                }
-
-                std::cout << "\n";
+//                for (int i = 0; i < 6; ++i) {
+//                    if (i == 0 || i == 3)
+//                        std::cout << std::fixed<<std::setprecision(6)<< -X[i] <<" ";
+//                    else
+//                        std::cout << std::fixed<<std::setprecision(6)<< X[i] <<" ";
+//                }
+//
+//                std::cout << "\n";
+//                for (int i = 0; i < 8; ++i) {
+//                    std::cout << std::fixed<<std::setprecision(6)<< d_state[i] <<" ";
+//                }
+//
+//                std::cout << "\n";
             }
             // context.SetContinuousState(X);
             for (int i = 0; i < sz; i++) {
@@ -120,7 +129,6 @@ namespace linear_system {
             temp << X;
             temp(0,0) = -temp(0,0);
             temp(3,0) = -temp(3,0);
-            temp(5,0) = -temp(5,0);
             output->SetFromVector(temp);
         }
 
@@ -167,12 +175,12 @@ namespace linear_system {
 
 
             Eigen::Matrix<double, 6, 1> X0;
-            X0 << 1, 0, 0.65, 1, 0, 0;
-            std::vector<double> step_lengths = {0.5, 0.5, 0.5, 0.5};
-            std::vector<double> change_in_yaw = {0, 0, 0, 0};
+            X0 << 1, 0, 0.65, 1, 0, 0.2;
+            std::vector<double> step_lengths = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
+            std::vector<double> change_in_yaw = {0, 0, 0, 0, 0, 0, 0, 0};
             system.SetInitState(X0, state, step_lengths, change_in_yaw);
             system.SetInput(U);
-            simulator.AdvanceTo(2);
+            simulator.AdvanceTo(5);
         }
     };
 }  // namespace linear_system

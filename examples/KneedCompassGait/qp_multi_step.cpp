@@ -27,7 +27,7 @@
 #include "drake/examples/KneedCompassGait/system.h"
 
 #define TIME_RATE 0.5
-#define SIMULATION_TIME 0.35
+#define SIMULATION_TIME 1.0
 namespace drake {
 namespace examples {
 namespace qpControl {
