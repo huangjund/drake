@@ -36,7 +36,7 @@
 #define mu 1.0
 #define COM 6 // state of COM
 #define alpha 0
-#define ZH 0.1 // the desired z height of foot toe
+#define ZH 0.05 // the desired z height of foot toe
 #define contact_phi 1e-3
 #define W1 4e5
 #define W2 0
@@ -46,30 +46,31 @@
 #define W6 1e5
 #define W5i 1e5 // prevent front leg from slipping after touching ground
 #define W6i 1e8
-
 #define KPXDDX 1
-#define KDXDDX 100
+#define KDXDDX 10
+#define RECOVER_PARA 50
+#define VXRECOVER 0.01
 #define KPXDDY 1
 #define KDXDDY 0
-#define KPXDDZ 5e2 // increase to decrease height vs x
-#define KDXDDZ 30
-
-#define Kpx 2// the Kp of foot coordinate x
-#define Kdx 1 // the Kd of foot coordinate x
+#define KPXDDZ 10 // increase to decrease height vs x
+#define KDXDDZ 50 //50
+#define COMZ_RECOVER 50
+#define COMZ_DIFF 0.01
+#define Kpx 18 // the Kp of foot coordinate x 1.9
+#define Kdx 6 // the Kd of foot coordinate x 0.5
 #define Kpy 1 // the Kp of foot coordinate y
 #define Kdy 0 // the Kd of foot coordinate y
-#define KpzUP 50 //the Kp of foot coordinate z
-#define KdzUP 10 // the Kd of foot coordinate z
-#define KpzDOWN 54.5
-#define KdzDOWN 0.5
-#define Kpxi 1// the Kp of foot coordinate x
+#define KpzUP 20 //the Kp of foot coordinate z
+#define KdzUP 2 // the Kd of foot coordinate z
+#define KpzDOWN 20
+#define KdzDOWN 12
+#define Kpxi 6// the Kp of foot coordinate x
 #define Kdxi 0 // the Kd of foot coordinate x
 #define Kpyi 1 // the Kp of foot coordinate y
 #define Kdyi 0 // the Kd of foot coordinate y
-#define KpzUPi 1e3 // the Kp of foot coordinate z, consistent
+#define KpzUPi 100// the Kp of foot coordinate z, consistent
 #define KdzUPi 1e2// the Kd of foot coordinate z
 #define THRESH 0.5 // the threshhold of zdot decrease
-#define COMZ 0 // replanning threshold of com z
 
 namespace drake {
 namespace examples {
@@ -289,29 +290,80 @@ namespace qpControl {
                 drake::systems::DiscreteValues<double>* updates) const override {
             using std::cout;
             using std::endl;
+            t = context.get_time();
+            VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
             static Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
             static int m=0;
-
-            t = context.get_time();
+            static int count_num = 1;
+            static bool count_num_change = false;
 
           // get the current state and current disired trajectory
-            VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
-//            VectorX<double> traj = this->EvalVectorInput(context, 1)->CopyToVector();
-//            VectorX<double> ds_state = this->EvalVectorInput(context, 2)->CopyToVector();
             VectorX<double> xcom_des(COM), x_yaw_des(1); // qd_des(NV),
             VectorX<double> q(NQ), qd(NV);
             VectorX<double> this_stance(3),next_stance(3);
-
             for (int i = 0; i < NQ; ++i) {
                 q[i] = x[i];
                 qd[i] = x[i+NQ];
             }
-            this->left_is_stance = foot_step_[m++][6];
+            this->left_is_stance = foot_step_[m][6];
             x_yaw_des[1] = 0;
 
-            if (xcom_des(2,0) < COMZ)
-                xcom_des(2,0) = (xcom_des(2,0)+COMZ)/2.;
+            static bool replanning = false;
+            static bool isNew = false;
+            static double foot_step_error = 0;
+            static double stance_now=-1.25;
+            static double current_comx = -1.0;
+//            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
+//                 << "\tcount_num_change:" << count_num_change << "\tleft is stance :" << left_is_stance << endl;
+
+            stance_now = foot_step_[m][0]-foot_step_error;
+            if (replanning) {
+                while(!isNew) {// firstly skip to the switching point
+                    this_stance[0] = foot_step_[m][0]-foot_step_error;
+//                    cout << "stance_now:" << stance_now << "this_stance: " << this_stance[0] << endl;
+                    if (stance_now == this_stance[0])
+                        isNew = false;
+                    else
+                        isNew = true;
+                    stance_now = this_stance[0];
+                    ++m;
+                }
+//                cout << "============================================" << m << "============================="<< endl;
+//                cout << "current_comx:" << current_comx << "\ttrajectory_[m][0]:" << trajectory_[m][0] << endl;
+                if (current_comx < trajectory_[m][0]-foot_step_error)
+                    while (current_comx < trajectory_[m][0]-foot_step_error) {
+//                        cout << "current_comx:" << current_comx << "\ttrajectory:" << trajectory_[m][0]-foot_step_error << endl;
+                        ++m;
+                    }
+            }
+//            else {
+//                this_stance[0] = foot_step_[m][0]-foot_step_error;
+//                    cout << "stance_now:" << stance_now << "this_stance: " << this_stance[0] << endl;
+//                if (stance_now == this_stance[0])
+//                    isNew = false;
+//                else
+//                    isNew = true;
+//                stance_now = this_stance[0];
+//            }
+            replanning = false;
+
+            cout << "============================================" << m << "============================="<< endl;
+            for (int l = 0; l < COM; ++l) {
+                if (l < COM)
+                    xcom_des[l] = trajectory_[m][l];
+                if (l < 3){
+                    this_stance[l] = foot_step_[m][l];
+                    next_stance[l] = foot_step_[m][l+3];
+                }
+            }
+            xcom_des[0] -= foot_step_error;
+            next_stance[0] -= foot_step_error;
+            this_stance[0] -= foot_step_error;
+            stance_now = this_stance[0];
+//            cout << "foot step error:" << foot_step_error << "next stance:" << next_stance[0] << endl;
+            this->left_is_stance = foot_step_[m++][6];
+
             // create the current kinematic cache
             auto kinsol = (this->rtree_)->doKinematics(q, qd);
             Vector3<double> toe_collision_bias(0, 0, -0.5);
@@ -342,32 +394,6 @@ namespace qpControl {
             Eigen::VectorXd phi;
             contactDistances(*(this->rtree_), kinsol, *(this->lfoot_), *(this->rfoot_), phi);
 
-            static bool replanning = false;
-            static double stance_now=-1.25;
-            static bool isNew = false;
-
-            if (replanning)
-                while (!isNew) {
-                    this_stance[0] = foot_step_[m++][0];
-                    cout << "stance now:\t" << stance_now <<"\tthis_stance\t:" << this_stance[0] << endl;
-                    if (stance_now == this_stance[0])
-                        isNew = false;
-                    else
-                        isNew = true;
-                    stance_now = this_stance[0];
-                }
-            this->left_is_stance = foot_step_[m][6];
-            replanning = false;
-
-            cout << "============================================" << m << "============================="<< endl;
-            for (int l = 0; l < COM; ++l) {
-                if (l < COM)
-                    xcom_des[l] = trajectory_[m][l];
-                if (l < 3){
-                    this_stance[l] = foot_step_[m][l];
-                    next_stance[l] = foot_step_[m][l+3];
-                }
-            }
             // foot dynamics
             auto left_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 7, 0, true);
             auto right_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 11, 0, true);
@@ -379,6 +405,8 @@ namespace qpControl {
             left_toe_Jqdot << left_toe_jaco*qd;
             right_toe_Jqdot << right_toe_jaco*qd;
 
+            current_comx = com(0,0);
+            cout << "==================next_stance:" << next_stance[0] << endl;
             // Problem Constraints ----------------------------------------------------------------------
             Eigen::Matrix<double, NF, 1> l_contact;
             Eigen::Matrix<double, NF, 1> u_contact;
@@ -395,6 +423,7 @@ namespace qpControl {
                     }
                 }
             }
+            cout <<"\tcount:" << count << endl;
             this->con_fric_lim_->set_bounds(l_contact, u_contact);
 
             Eigen::Vector2d beq_slack;
@@ -419,6 +448,10 @@ namespace qpControl {
             // Problem Costs ---------------------------------------------------------------------------
             auto kp = this->Kp_xdd_;
             auto kd = this->Kd_xdd_;
+            if (vcom[0] - xcom_des[3] > VXRECOVER)
+                kd(0,0) *= RECOVER_PARA;
+            if (com[2] - xcom_des[2] > COMZ_DIFF)
+                kp(2,0) *= COMZ_RECOVER;
             auto xddot_des = kp.cwiseProduct(xcom_des.segment(0, 3)-com) +
                     kd.cwiseProduct(xcom_des.segment(3,3)-vcom);
 
@@ -465,10 +498,6 @@ namespace qpControl {
             Eigen::Matrix<double, 3, 3> Q_slack3;
             double xddot, yddot, zddot;
 
-            static int count_num = count;
-            static bool count_num_change = false;
-            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
-            << "\tcount_num_change:" << count_num_change << endl;
             if (isNew){
                 if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
                     count_num = count;
@@ -565,6 +594,7 @@ namespace qpControl {
                         if (left_is_stance && count==1) {
                             // stance leg constraint
                             replanning = true;
+                            foot_step_error += next_stance[0] - right_toe_pos[0];
                             std::cout << "=======left is stance====3====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
@@ -641,6 +671,7 @@ namespace qpControl {
                         } else if (!left_is_stance && count==1) {
                             // stance leg constraint
                             replanning = true;
+                            foot_step_error += next_stance[0] - left_toe_pos[0];
                             cout << "======right is stance===5=====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
@@ -649,7 +680,7 @@ namespace qpControl {
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
 
-                            // stance leg cost
+                            // stance leg cost/**/
                             Q_slack2.setIdentity();
                             Q_slack2 *= W5;
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
@@ -681,7 +712,6 @@ namespace qpControl {
                             Q_slack3 *= W6;
                             this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
                         } else { // right stance impact phase
-                            cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
                             // stance leg constraint/**/
                             std::cout << "=======right is stance==impact phase==6====" << std::endl;
                             JStance << left_toe_jaco;
