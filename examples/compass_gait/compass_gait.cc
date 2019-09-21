@@ -118,6 +118,7 @@ T CompassGait<T>::FootCollision(const systems::Context<T>& context) const {
   // scuffing is surprisingly hard to avoid with that mechanism.
   using std::max;
  //   std::cout << "FootCollision 2 excuted" << std::endl;
+ std::cout << "the quantity of return:" << max(collision, cg_state.swing() - cg_state.stance()) << std::endl;
   return max(collision, cg_state.swing() - cg_state.stance());
 }
 
@@ -126,7 +127,7 @@ void CompassGait<T>::CollisionDynamics(
     const systems::Context<T>& context,
     const systems::UnrestrictedUpdateEvent<T>&,
     systems::State<T>* state) const {
-  //  std::cout << "CollisionDynamics 1 excuted" << std::endl;
+    std::cout << "CollisionDynamics 1 excuted" << std::endl;
   const CompassGaitContinuousState<T>& cg_state = get_continuous_state(context);
   CompassGaitContinuousState<T>& next_state =
       get_mutable_continuous_state(&(state->get_mutable_continuous_state()));
@@ -333,7 +334,7 @@ template <typename T>
 void CompassGait<T>::DoGetWitnessFunctions(
     const systems::Context<T>&,
     std::vector<const systems::WitnessFunction<T>*>* witnesses) const {
- //   std::cout << "DoGetWitnessFunction 1 excuted" << std::endl;
+    std::cout << "DoGetWitnessFunction 1 excuted" << std::endl;
   witnesses->push_back(foot_collision_.get());
 }
 

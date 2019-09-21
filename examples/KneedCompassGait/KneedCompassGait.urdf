@@ -239,14 +239,14 @@
         <parent link="hip2pin"/>
         <child link="pin2yaw"/>
         <axis xyz="0 1 0"/>
-        <limit effort="200" velocity="100"/>
+        <limit effort="1000" velocity="100"/>
     </joint>
     <joint name="left_knee_pin" type="revolute">
         <parent link="left_upper_leg"/>
         <child link="left_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit upper = "0" lower="-3.14" effort="200" velocity="100"/>
+        <limit upper = "0" lower="-3.14" effort="1000" velocity="100"/>
     </joint>
     <joint name="hip_yaw" type="continuous">
         <parent link="pin2yaw"/>
@@ -259,7 +259,7 @@
         <child link="right_lower_leg"/>
         <axis xyz="0 1 0"/>
         <origin xyz="0 0 -0.5"/>
-        <limit upper="0" lower="-3.14" effort="200" velocity="100"/>
+        <limit upper="0" lower="-3.14" effort="1000" velocity="100"/>
     </joint>
     <transmission name="hip_1trans" type="SimpleTransmission">
         <actuator name="hip_roll_torque"/>

@@ -4,7 +4,7 @@
 
 #include "drake/examples/KneedCompassGait/gen/KneedCompassGait_ContinuousState.h"
 #include "drake/examples/KneedCompassGait/gen/KneedCompassGait_Params.h"
-#include "drake/examples/KneedCompassGait/system.h"
+#include "drake/examples/KneedCompassGait/linear_system.h"
 #include "drake/systems/framework/event.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/framework/scalar_conversion_traits.h"

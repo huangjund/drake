@@ -25,6 +25,7 @@
 #include "drake/systems/framework/discrete_values.h"
 #include "drake/lcm/drake_lcm.h"
 
+// walk FOR eight step
 #define NQ 11
 #define NV 11
 #define NU 5
@@ -35,42 +36,154 @@
 #define m_surface_tangents 4
 #define mu 1.0
 #define COM 6 // state of COM
-#define alpha 0
-#define ZH 0.05 // the desired z height of foot toe
+#define ALPHA 0
+#define gama -1
+#define ZH 0.08 // the desired z height of foot toe
+#define COMZH 0.7 // the heighest point of com z trajectory
+#define STEP_LEN 0.4 // one foot step length
 #define contact_phi 1e-3
-#define W1 4e5
-#define W2 0
+#define W1 1e5
+#define W1y 1e7
+#define W2 1e3
 #define W3 0
 #define W4 0
 #define W5 1e8
 #define W6 1e5
+#define W7 1e8
 #define W5i 1e5 // prevent front leg from slipping after touching ground
 #define W6i 1e8
-#define KPXDDX 1
-#define KDXDDX 10
-#define RECOVER_PARA 50
-#define VXRECOVER 0.01
-#define KPXDDY 1
+
+#define KPXDDX 10
+#define KDXDDX 45
+#define KPXDDY 0
 #define KDXDDY 0
-#define KPXDDZ 10 // increase to decrease height vs x
+#define KPXDDZ 772 // increase to decrease height vs x
 #define KDXDDZ 50 //50
-#define COMZ_RECOVER 50
-#define COMZ_DIFF 0.01
-#define Kpx 18 // the Kp of foot coordinate x 1.9
-#define Kdx 6 // the Kd of foot coordinate x 0.5
-#define Kpy 1 // the Kp of foot coordinate y
-#define Kdy 0 // the Kd of foot coordinate y
-#define KpzUP 20 //the Kp of foot coordinate z
-#define KdzUP 2 // the Kd of foot coordinate z
-#define KpzDOWN 20
-#define KdzDOWN 12
+#define KDZWEIGHT 10 // the weight of the differential parameter
+
+#define Kpx_tra 12 // the Kp of foot coordinate x 1.9
+#define Kdx_tra 4 // the Kd of foot coordinate x 0.5
+#define Kpz_tra 9
+#define Kdz_tra 5
+
+#define Kpx_loc 30
+#define Kdx_loc 5
+#define KpzUP_loc 50
+#define KdzUP_loc 0
+#define KpzDOWN_loc 100
+#define KdzDOWN_loc 0
+#define KpzDOWN_loc_H 100
+#define FastDownHeight 0.03
+#define ADJUST 0.1
+
+#define Kpy_tra 1000// the Kp of foot coordinate y
+#define Kdy_tra 100 // the Kd of foot coordinate y
+#define Kpy_loc 10000
+#define Kdy_loc 1000
+
 #define Kpxi 6// the Kp of foot coordinate x
 #define Kdxi 0 // the Kd of foot coordinate x
 #define Kpyi 1 // the Kp of foot coordinate y
 #define Kdyi 0 // the Kd of foot coordinate y
-#define KpzUPi 100// the Kp of foot coordinate z, consistent
-#define KdzUPi 1e2// the Kd of foot coordinate z
-#define THRESH 0.5 // the threshhold of zdot decrease
+#define KpzUPi 3000// the Kp of foot coordinate z, consistent
+#define KdzUPi 0// the Kd of foot coordinate z
+
+// trick dumpe
+#define KpzUPd 3000
+
+// trick ground impulse parameters
+#define Kpxip 0// the Kp of foot coordinate x
+#define Kdxip 0 // the Kd of foot coordinate x
+#define Kpyip 1 // the Kp of foot coordinate y
+#define Kdyip 0 // the Kd of foot coordinate y
+#define KpzUPip 8000// the Kp of foot coordinate z, consistent
+#define KdzUPip 100// the Kd of foot coordinate z
+#define THRESH 0.1 // the up and down tag
+#define IMPULSE_TIME 3 // the impulse push time
+
+#define Highest_V 0.9
+#define BandWidth_H 0.05
+#define Lowest_V 0.59
+#define BandWidth_L 0.02
+
+// WALKING FOR 8 STEPS
+//#define NQ 11
+//#define NV 11
+//#define NU 5
+//#define DIM 3
+//#define ND 4 // friction cone approx
+//#define NC 2 // 2 on the left 2 on the right
+//#define NF 8 // number of contact force variables
+//#define m_surface_tangents 4
+//#define mu 1.0
+//#define COM 6 // state of COM
+//#define ALPHA 0
+//#define gama -1
+//#define ZH 0.05 // the desired z height of foot toe
+//#define COMZH 0.7 // the heighest point of com z trajectory
+//#define STEP_LEN 0.4 // one foot step length
+//#define contact_phi 1e-3
+//#define W1 1e5
+//#define W1y 1e7
+//#define W2 1e3
+//#define W3 0
+//#define W4 0
+//#define W5 1e8
+//#define W6 1e5
+//#define W5i 1e5 // prevent front leg from slipping after touching ground
+//#define W6i 1e8
+//
+//#define KPXDDX 1
+//#define KDXDDX 5
+//#define KPXDDY 0
+//#define KDXDDY 0
+//#define KPXDDZ 400 // increase to decrease height vs x
+//#define KDXDDZ 30 //50
+//#define KDZWEIGHT 10 // the weight of the differential parameter
+//
+//#define Kpx_tra 200 // the Kp of foot coordinate x 1.9
+//#define Kdx_tra 20 // the Kd of foot coordinate x 0.5
+//#define Kpz_tra 200
+//#define Kdz_tra 20
+//
+//#define Kpx_loc 5
+//#define Kdx_loc 0
+//#define KpzUP_loc 0
+//#define KdzUP_loc 0
+//#define location_Kpzdown 10
+//#define KdzDOWN_loc 0
+//
+//#define Kpy_tra 1000// the Kp of foot coordinate y
+//#define Kdy_tra 100 // the Kd of foot coordinate y
+//#define Kpy_loc 10000
+//#define Kdy_loc 1000
+//
+//#define Kpxi 6// the Kp of foot coordinate x
+//#define Kdxi 0 // the Kd of foot coordinate x
+//#define Kpyi 1 // the Kp of foot coordinate y
+//#define Kdyi 0 // the Kd of foot coordinate y
+//#define Impact_KpzUP 3000// the Kp of foot coordinate z, consistent
+//#define KdzUPi 0// the Kd of foot coordinate z
+//
+//// trick ground impulse parameters
+//#define Kpxip 0// the Kp of foot coordinate x
+//#define Kdxip 0 // the Kd of foot coordinate x
+//#define Kpyip 1 // the Kp of foot coordinate y
+//#define Kdyip 0 // the Kd of foot coordinate y
+//#define KpzUPip 3000// the Kp of foot coordinate z, consistent
+//#define KdzUPip 100// the Kd of foot coordinate z
+//#define THRESH 0.3 // the up and down tag
+//#define IMPULSE_TIME 3 // the impulse push time
+//#define SLOPE -0.1 // redesign the down slope of the com z
+// trick parameters
+//#define RECOVER_PARA 4
+//#define VXRECOVER 1 // 0.01 when the vcomx is lower than the desired vcomx
+//#define COMZ_RECOVER 3
+//#define COMZ_DIFF 1 // 0.01 WHEN THE comz is higher than desired comz
+//#define COMZM_RECOVER 30
+//#define COMZM_DIFF 2 // when the comz is lower than the desired comz
+//#define FOOTZ_RECOVER 10 // when the foot is higher than the offset
+//#define ZH_OFFSET 1
 
 namespace drake {
 namespace examples {
@@ -91,15 +204,40 @@ namespace qpControl {
             // current_stance_leg, next stance_leg)
             this->DeclareVectorOutputPort(KneedCompassGait::KcgInput<double>(),
                     &qpController::CopyCommandOutSim);
-            this->DeclareVectorOutputPort(systems::BasicVector<double>(18),
+            this->DeclareVectorOutputPort(systems::BasicVector<double>(37),
                                           &qpController::COM_ToeOutPut);
+
+            // to judge the runing period;
+            // period_state_
+            // 2 means regular running
+            // 1 means reaches a new piece of trajectory
+            // 0 means phase space x corrupted
+            this->DeclareAbstractState(AbstractValue::Make(period_state_));
+            this->DeclareAbstractState(AbstractValue::Make(sim_time));
+            this->DeclareAbstractState(AbstractValue::Make(t));
+            this->DeclareAbstractState(AbstractValue::Make(t_pre_));
+            this->DeclareAbstractState(AbstractValue::Make(m_));
+            this->DeclareAbstractState(AbstractValue::Make(count_num_));
+            this->DeclareAbstractState(AbstractValue::Make(count_num_change_));
+            this->DeclareAbstractState(AbstractValue::Make(step_num_));
+            this->DeclareAbstractState(AbstractValue::Make(replanning_));
+            this->DeclareAbstractState(AbstractValue::Make(isNew_));
+            this->DeclareAbstractState(AbstractValue::Make(stance_now_));
+            this->DeclareAbstractState(AbstractValue::Make(location_bias_));
+            this->DeclareAbstractState(AbstractValue::Make(modified_));
+            this->DeclareAbstractState(AbstractValue::Make(incline_));
+            this->DeclareAbstractState(AbstractValue::Make(fail_times_));
+
             this->DeclareDiscreteState(NU);
 
-           // constexpr double print_period = 0.05;
-           // double last_print = -print_period;
-           // auto last_v = Eigen::VectorXd::Zero(3); // initialization
-
             this->DeclarePeriodicDiscreteUpdate(0.0005);
+            this->DeclarePeriodicUnrestrictedUpdateEvent(0.0005, 0, &qpController::AbstractUpdate);
+//            NewPeriodicState_ = this->MakeWitnessFunction(
+//                    "trajectory state change",
+//                    systems::WitnessFunctionDirection::kPositiveThenNonPositive,
+//                    &qpController::AutomataSpecific,
+//                    &qpController::AbstractUpdate);
+
             VectorX<double> q_d(NQ);
             q_d.setZero();
 
@@ -119,12 +257,10 @@ namespace qpControl {
 
             Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
-
             std::ifstream ifstr_data("examples/KneedCompassGait/data.txt");
             double temp_data;
             std::vector<std::vector<double>> mat;
             std::vector<double> one_row(6,0);
-
             for (int j = 0; !ifstr_data.eof() ; ++j) {
                 for (int i = 0; i < 6; ++i) {
                     ifstr_data >> temp_data;
@@ -147,15 +283,28 @@ namespace qpControl {
             }
             ifstr_data2.close();
 
+            std::ifstream ifstr_data3("examples/KneedCompassGait/data3.txt");
+            std::vector<std::vector<double>> mat3;
+            std::vector<double> one_row3(6,0);
+
+            for (int j = 0; !ifstr_data3.eof() ; ++j) {
+                for (int i = 0; i < 6; ++i) {
+                    ifstr_data3 >> temp_data;
+                    one_row3[i] = temp_data;
+                }
+                mat3.push_back(one_row3);
+            }
+            ifstr_data3.close();
+
             this->trajectory_ = mat;
             this->foot_step_ = mat2;
-//
-//            for (int k = 0; k < 100; ++k) {
+            this->foot_trajectory_ = mat3;
+
+//            for (int k = 0; k < 10000; ++k) {
 //                for (int i = 0; i < 6;  ++i) {
-//                    std::cout << std::fixed << std::setprecision(5) << trajectory_[k][i];
-//                    std::cout << "\t" << foot_step_[k][i] << std::endl;
+//                    std::cout << std::fixed << std::setprecision(5) << foot_trajectory_[k][i] << "\t";
 //                }
-//
+//                std::cout << "\n";
 //            }
 
             // add decision variables--------------------------------------------------------------------
@@ -167,6 +316,7 @@ namespace qpControl {
             auto yita_sw = prog.NewContinuousVariables(3, "swing leg slack"); // 3 swing leg slack variables
             auto x_yaw = prog.NewContinuousVariables(1, "yaw");  // robot yaw
          //   int nparams = prog.num_vars();
+
 
             // Problem Constrains -----------------------------------------------------------------------
             auto con_u_lim = prog.AddBoundingBoxConstraint(umin,umax, u).evaluator();
@@ -204,12 +354,18 @@ namespace qpControl {
             Vector1<double> beq_yaw(0);
             auto con_yaw = prog.AddLinearEqualityConstraint(Aeq_yaw, beq_yaw, x_yaw).evaluator();
 
-            Eigen::Matrix2d Aeq_tau;
-            Aeq_tau.setIdentity();
-            Eigen::Vector2d beq_tau;
-            beq_tau.setZero();
-            auto con_tau = prog.AddLinearEqualityConstraint(Aeq_tau, beq_tau, {u.segment(0,1), u.segment(3,1)});
+//            Eigen::Matrix2d Aeq_tau;
+//            Aeq_tau.setIdentity();
+//            Eigen::Vector2d beq_tau;
+//            beq_tau.setZero();
+//            auto con_tau = prog.AddLinearEqualityConstraint(Aeq_tau, beq_tau, {u.segment(0,1), u.segment(3,1)});
             // Problem Cost -----------------------------------------------------------------------------
+            Eigen::Matrix<double, 5, 5> Q_lateral;
+            Eigen::Matrix<double, 5, 1> b_lateral;
+            Q_lateral.setIdentity();b_lateral.setZero();
+            Q_lateral *= W7;
+            auto cost_lateral = prog.AddQuadraticCost(Q_lateral, b_lateral, {vdot.segment(1,1), vdot.segment(3,1),
+                                                                             vdot.segment(5,1), vdot.segment(6,1),vdot.segment(9,1)});
 
             // set the Kp and Kd for COM xddot
             this->Kp_xdd_.setOnes();
@@ -291,78 +447,85 @@ namespace qpControl {
             using std::cout;
             using std::endl;
             t = context.get_time();
+
+            cout << "Docacl" << endl;
+
+            cout << "stance Now:" << stance_now_   <<
+                 "\tsim_tim:" << sim_time << "\tt" << t << "\tstep_num:" <<
+                 step_num_   << "\tperiod_state:" << period_state_ <<
+                 "\tm:" << m_ << endl;
+
+            if (sim_time <= t-h) {
             VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
-            static Eigen::Matrix<double, NU, 1> t_pre;
+            static Eigen::Matrix<double, NU, 1> t_pre = t_pre_;
             t_pre.setZero();
-            static int m=0;
-            static int count_num = 1;
-            static bool count_num_change = false;
+            static int m=m_;
+            static int count_num = count_num_;
+            static bool count_num_change = count_num_change_;
+            static int lock = 0;
+            static Eigen::Matrix<double, 3, 1> vcom_offset(-0.95,0,0.095);
+            static Eigen::Matrix<double, 3, 1> initdes_vcom(-0.998557, 0, 0.099856);
+            static Eigen::Matrix<double, 3, 1> last_foot_point(0, 0, 0);
+            static int step_num = step_num_;
+            if (semophore_) {
+                m = m_;
+                count_num = count_num_;count_num_change = count_num_change_;step_num = step_num_;t_pre = t_pre_;
+                incline_ = 0;// fail_times_ = 0;
+            }
 
           // get the current state and current disired trajectory
-            VectorX<double> xcom_des(COM), x_yaw_des(1); // qd_des(NV),
+            VectorX<double> xcom_des(COM), foot_traj_des(COM), x_yaw_des(1); // qd_des(NV),
             VectorX<double> q(NQ), qd(NV);
             VectorX<double> this_stance(3),next_stance(3);
             for (int i = 0; i < NQ; ++i) {
                 q[i] = x[i];
                 qd[i] = x[i+NQ];
             }
+
             this->left_is_stance = foot_step_[m][6];
             x_yaw_des[1] = 0;
 
-            static bool replanning = false;
-            static bool isNew = false;
-            static double foot_step_error = 0;
-            static double stance_now=-1.25;
-            static double current_comx = -1.0;
+            static bool replanning = replanning_;
+            static bool isNew = isNew_;
+            static double stance_now = stance_now_;
+            if (semophore_) {
+                replanning = replanning_;isNew = isNew_;stance_now = stance_now_;
+                semophore_ = false;
+            }
+            static int impulse_push = IMPULSE_TIME;
 //            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
 //                 << "\tcount_num_change:" << count_num_change << "\tleft is stance :" << left_is_stance << endl;
 
-            stance_now = foot_step_[m][0]-foot_step_error;
+            stance_now = foot_step_[m][0]; //-foot_step_error;
             if (replanning) {
                 while(!isNew) {// firstly skip to the switching point
-                    this_stance[0] = foot_step_[m][0]-foot_step_error;
+                    this_stance[0] = foot_step_[m][0]; //-foot_step_error;
 //                    cout << "stance_now:" << stance_now << "this_stance: " << this_stance[0] << endl;
                     if (stance_now == this_stance[0])
                         isNew = false;
-                    else
+                    else{
                         isNew = true;
+                        step_num += 1;
+                    }
                     stance_now = this_stance[0];
                     ++m;
                 }
-//                cout << "============================================" << m << "============================="<< endl;
-//                cout << "current_comx:" << current_comx << "\ttrajectory_[m][0]:" << trajectory_[m][0] << endl;
-                if (current_comx < trajectory_[m][0]-foot_step_error)
-                    while (current_comx < trajectory_[m][0]-foot_step_error) {
-//                        cout << "current_comx:" << current_comx << "\ttrajectory:" << trajectory_[m][0]-foot_step_error << endl;
-                        ++m;
-                    }
             }
-//            else {
-//                this_stance[0] = foot_step_[m][0]-foot_step_error;
-//                    cout << "stance_now:" << stance_now << "this_stance: " << this_stance[0] << endl;
-//                if (stance_now == this_stance[0])
-//                    isNew = false;
-//                else
-//                    isNew = true;
-//                stance_now = this_stance[0];
-//            }
             replanning = false;
 
-            cout << "============================================" << m << "============================="<< endl;
+//            cout << "============================================" << m << "============================="<< endl;
             for (int l = 0; l < COM; ++l) {
-                if (l < COM)
+                if (l < COM){
                     xcom_des[l] = trajectory_[m][l];
+                    foot_traj_des[l] = foot_trajectory_[m][l];
+                }
                 if (l < 3){
                     this_stance[l] = foot_step_[m][l];
                     next_stance[l] = foot_step_[m][l+3];
                 }
             }
-            xcom_des[0] -= foot_step_error;
-            next_stance[0] -= foot_step_error;
-            this_stance[0] -= foot_step_error;
-            stance_now = this_stance[0];
-//            cout << "foot step error:" << foot_step_error << "next stance:" << next_stance[0] << endl;
             this->left_is_stance = foot_step_[m++][6];
+
 
             // create the current kinematic cache
             auto kinsol = (this->rtree_)->doKinematics(q, qd);
@@ -405,8 +568,41 @@ namespace qpControl {
             left_toe_Jqdot << left_toe_jaco*qd;
             right_toe_Jqdot << right_toe_jaco*qd;
 
-            current_comx = com(0,0);
-            cout << "==================next_stance:" << next_stance[0] << endl;
+            double rdis_x = next_stance[0] - right_toe_pos[0];
+            double rdis_y = next_stance[1] - right_toe_pos[1];
+            double ldis_x = next_stance[0] - left_toe_pos[0];
+            double ldis_y = next_stance[1] - left_toe_pos[1];
+
+            rdis_x = next_stance[0] - right_toe_pos[0] - location_bias_;
+            ldis_x = next_stance[0] - left_toe_pos[0] - location_bias_;
+
+
+            switch (step_num_) {
+                case 5:
+                    rdis_x = next_stance[0] - right_toe_pos[0]; // - 0.001;
+                    ldis_x = next_stance[0] - left_toe_pos[0]; // - 0.001;
+                    break;
+                case 6:
+                    rdis_x = next_stance[0] - right_toe_pos[0]-0.03;
+                    ldis_x = next_stance[0] - left_toe_pos[0]-0.03;
+                    break;
+                case 7:
+                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.07;
+                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.07;
+                    break;
+                case 8:
+                    rdis_x = next_stance[0] - right_toe_pos[0] + 0.03; //-0.1;
+                    ldis_x = next_stance[0] - left_toe_pos[0] + 0.03; //-0.1;
+                    break;
+                default:
+                    break;
+            }
+
+//            if (step_num == 8) {
+//                rdis_x = next_stance[0] - right_toe_pos[0]+ADJUST;
+//                ldis_x = next_stance[0] - left_toe_pos[0]+ADJUST;
+//            }
+
             // Problem Constraints ----------------------------------------------------------------------
             Eigen::Matrix<double, NF, 1> l_contact;
             Eigen::Matrix<double, NF, 1> u_contact;
@@ -423,12 +619,20 @@ namespace qpControl {
                     }
                 }
             }
-            cout <<"\tcount:" << count << endl;
             this->con_fric_lim_->set_bounds(l_contact, u_contact);
-
             Eigen::Vector2d beq_slack;
-            beq_slack[0] = -5*tan(M_PI*((q[8]+3.14)/3.14 - 0.5));
-            beq_slack[1] = -5*tan(M_PI*((q[10]+3.14)/3.14 - 0.5));
+            beq_slack.setZero();
+
+            if (lock == 0) { // when left is the stance leg, lock the left leg
+                this->Aeq_slack(1,1) = 0;
+                this->Aeq_slack(0,0) = 1;
+            } else if (lock == 1) { // when right is the stance leg, lock the right leg
+                this->Aeq_slack(0,0) = 0;
+                this->Aeq_slack(1,1) = 1;
+            } else if (lock == 2) { // when is in due contact phase, don't lock any leg
+                this->Aeq_slack(0,0) = 0;
+                this->Aeq_slack(1,1) = 1;
+            }
             this->con_slack_->UpdateCoefficients(this->Aeq_slack, beq_slack);
 
             Eigen::Matrix<double, NQ-NU, NQ+NF> dyn_conf;
@@ -446,30 +650,38 @@ namespace qpControl {
             this->con_yaw_->UpdateCoefficients(Aeq_yaw, beq_yaw);
 
             // Problem Costs ---------------------------------------------------------------------------
-            auto kp = this->Kp_xdd_;
-            auto kd = this->Kd_xdd_;
-            if (vcom[0] - xcom_des[3] > VXRECOVER)
-                kd(0,0) *= RECOVER_PARA;
-            if (com[2] - xcom_des[2] > COMZ_DIFF)
-                kp(2,0) *= COMZ_RECOVER;
+            Eigen::Matrix<double, COM/2, 1> kp = this->Kp_xdd_;
+            Eigen::Matrix<double, COM/2, 1> kd = this->Kd_xdd_;
+
             auto xddot_des = kp.cwiseProduct(xcom_des.segment(0, 3)-com) +
                     kd.cwiseProduct(xcom_des.segment(3,3)-vcom);
+            Eigen::Matrix<double, 3, 3> wxddot;
+            wxddot << W1, 0, 0,
+                        0, W1y, 0,
+                        0, 0, W1;
 
-
-            auto Q_xdd = 2*W1*Jcom.transpose()*Jcom;
-            auto b_xdd = 2*W1*Jcom.transpose()*(Jcomdot_times_v-xddot_des);
+            auto Q_xdd = 2*Jcom.transpose()*wxddot*Jcom;
+            auto b_xdd = 2*Jcom.transpose()*wxddot*(Jcomdot_times_v-xddot_des);
             this->cost_xddot_->UpdateCoefficients(Q_xdd, b_xdd);
 
 
-            auto Q_t = 2*this->weight_t_;
-            auto b_t = 2*this->weight_t_.transpose()*(-t_pre);
+            Eigen::Matrix<double, NU, NU> Q_t = 2*this->weight_t_;
+            Eigen::Matrix<double, NU, 1> b_t = 2*this->weight_t_.transpose()*(-t_pre);
+            if (count == 2){ Q_t *= 0; b_t *= 0;}
             this->cost_t_->UpdateCoefficients(Q_t, b_t);
 
             auto Q_yaw = 2*this->weight_yaw_;
             auto b_yaw = -2*this->weight_yaw_*x_yaw_des;
             this->cost_yaw_->UpdateCoefficients(Q_yaw, b_yaw);
 
-            auto Q_slack = 2*this->weight_slack_;
+            Eigen::Matrix<double, 2, 2> Q_slack = 2*this->weight_slack_;
+//            if (q[8] > varipsion && q[10] < varipsion) {
+//                Q_slack(1,1) = 0;
+//            } else if (q[8] < varipsion && q[10] > varipsion) {
+//                Q_slack(0,0) = 0;
+//            } else if (q[8] < varipsion && q[10] < varipsion) {
+//                Q_slack *= 0;
+//            }
             Vector2<double> b_slack(0,0);
             this->cost_slack_->UpdateCoefficients(Q_slack, b_slack);
 
@@ -497,15 +709,54 @@ namespace qpControl {
             Eigen::Matrix<double, 3, NQ+3> Aeq_slack3;
             Eigen::Matrix<double, 3, 3> Q_slack3;
             double xddot, yddot, zddot;
+            double xlddot, ylddot, zlddot;
+
+            // a judgement, when the toe is too high, give it a higher desired acceleartion towards ground
+            double KpzTraj;
+            KpzTraj = Kpz_tra;
+            double KdzTraj;
+            KdzTraj = Kdz_tra;
+
+            // a judgement, when it is the first time in a piece of trajectory to hit the ground, give it a
+            // time impulse push towards the ground
+            double kpxi, kdxi, kpyi, kdyi, kpzi, kdzi;
+            kpxi = Kpxi;
+            kdxi = Kdxi;
+            kpyi = Kpyi;
+            kdyi = Kdyi;
+            kpzi = KpzUPi;
+            kdzi = KdzUPi;
+            if (count == 2) {
+                if (step_num%6 == 0) {
+                    kpzi = KpzUPd;
+                }
+                if (impulse_push) {
+                    kpxi = Kpxip;
+                    kdxi = Kdxip;
+                    kpyi = Kpyip;
+                    kdyi = Kdyip;
+                    kpzi = KpzUPip;
+                    kdzi = KdzUPip;
+                    --impulse_push;
+                }
+            }
+
+            double location_Kpzdown = KpzDOWN_loc;
+
+            period_state_ = update_automata(isNew, step_num, -vcom(0,0));
 
             if (isNew){
                 if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
+                    lock = 0;
                     count_num = count;
+                    initdes_vcom(0,0) = trajectory_[m][3];
+                    initdes_vcom(1,0) = trajectory_[m][4];
+                    initdes_vcom(2,0) = trajectory_[m][5];
                     // stance leg constraint
                     std::cout << "=======left is stance===1=====" << std::endl;
                     JStance << left_toe_jaco;
                     JdotqdotStance << left_toe_jacodotv;
-                    JqdotStance << alpha*left_toe_Jqdot;
+                    JqdotStance << ALPHA*left_toe_Jqdot;
                     beq_slack2 << -JdotqdotStance-JqdotStance;
                     Aeq_slack2 << JStance, -I;
                     this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -516,20 +767,25 @@ namespace qpControl {
                     this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                     // swing leg constraint
-                    double dis_x = next_stance[0] - right_toe_pos[0];
-                    double dis_y = next_stance[1] - right_toe_pos[1];
-                    xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
-                    yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
-                    if (fabs(dis_x) + fabs(dis_y) >= THRESH){
-                        zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
-                        Xddot << xddot, yddot, zddot;
+
+                    // the trajectory part
+                    xddot = Kpx_tra*(foot_traj_des[0] - right_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - right_toe_Jqdot[0]);
+                    yddot = Kpy_tra*(foot_traj_des[1] - right_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - right_toe_Jqdot[1]);
+                    zddot = KpzTraj*(foot_traj_des[2] - right_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - right_toe_Jqdot[2]);
+
+                    // the foot location part
+                    xlddot = Kpx_loc*rdis_x-Kdx_loc*right_toe_Jqdot[0];
+                    ylddot = Kpy_loc*rdis_y-Kdy_loc*right_toe_Jqdot[1];
+                    if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+                        zlddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+                        Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                     }
                     else{
-                        zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                        zlddot = -location_Kpzdown*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
                         if (phi[1] < contact_phi)
                             Xddot << 0, 0, zddot;
                         else
-                            Xddot << xddot, yddot, zddot;
+                            Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                     }
                     JSwing << right_toe_jaco;
                     JdotqdotSwing << right_toe_jacodotv;
@@ -543,12 +799,16 @@ namespace qpControl {
                     this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
                 } else {    // if the trajectory is new and right is the stance leg then to swing phase
+                    lock = 1;
                     count_num = count;
+                    initdes_vcom(0,0) = xcom_des[3];
+                    initdes_vcom(1,0) = xcom_des[4];
+                    initdes_vcom(2,0) = xcom_des[5];
                     // stance leg constraint
                     cout << "======right is stance===2=====" << endl;
                     JStance << right_toe_jaco;
                     JdotqdotStance << right_toe_jacodotv;
-                    JqdotStance << alpha*right_toe_Jqdot;
+                    JqdotStance << ALPHA*right_toe_Jqdot;
                     beq_slack2 << -JdotqdotStance-JqdotStance;
                     Aeq_slack2 << JStance, -I;
                     this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -559,20 +819,22 @@ namespace qpControl {
                     this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                     // swing leg constraint
-                    double dis_x = next_stance[0] - left_toe_pos[0];
-                    double dis_y = next_stance[1] - left_toe_pos[1];
-                    xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
-                    yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                    if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
-                        zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
-                        Xddot << xddot, yddot, zddot;
+                    xddot = Kpx_tra*(foot_traj_des[0] - left_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - left_toe_Jqdot[0]);
+                    yddot = Kpy_tra*(foot_traj_des[1] - left_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - left_toe_Jqdot[1]);
+                    zddot = KpzTraj*(foot_traj_des[2] - left_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - left_toe_Jqdot[2]);
+
+                    xlddot = Kpx_loc*ldis_x-Kdx_loc*left_toe_Jqdot[0];
+                    ylddot = Kpy_loc*ldis_y-Kdy_loc*left_toe_Jqdot[1];
+                    if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+                        zlddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+                        Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                     }
                     else{
-                        zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                        zlddot = -location_Kpzdown*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
                         if (phi[0] < contact_phi)
                             Xddot << 0, 0, zddot;
                         else
-                            Xddot << xddot, yddot, zddot;
+                            Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                     }
                     JSwing << left_toe_jaco;
                     JdotqdotSwing << left_toe_jacodotv;
@@ -586,19 +848,24 @@ namespace qpControl {
                     this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
                 }
+                impulse_push = IMPULSE_TIME;
                 count_num_change = false;
                 isNew = false;
+       //         comz_is_greater = false;
             } else {
                 if (count_num == count) {
                     if (count_num_change) {
                         if (left_is_stance && count==1) {
                             // stance leg constraint
                             replanning = true;
-                            foot_step_error += next_stance[0] - right_toe_pos[0];
+                            vcom_offset(0,0) = vcom[0];
+                            vcom_offset(1,0) = vcom[1];
+                            vcom_offset(2,0) = vcom[2];
+//                            foot_step_error += next_stance[0] - right_toe_pos[0];
                             std::cout << "=======left is stance====3====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
-                            JqdotStance << alpha*left_toe_Jqdot;
+                            JqdotStance << ALPHA*left_toe_Jqdot;
                             beq_slack2 << -JdotqdotStance-JqdotStance;
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -609,21 +876,38 @@ namespace qpControl {
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                             // swing leg constraint
-                            double dis_x = next_stance[0] - right_toe_pos[0];
-                            double dis_y = next_stance[1] - right_toe_pos[1];
-                            xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
-                            yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
-                            if (fabs(dis_x) + fabs(dis_y) >= THRESH){
-                                zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
-                                Xddot << xddot, yddot, zddot;
+
+                            xddot = Kpx_tra*(foot_traj_des[0] - right_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - right_toe_Jqdot[0]);
+                            yddot = Kpy_tra*(foot_traj_des[1] - right_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - right_toe_Jqdot[1]);
+                            zddot = KpzTraj*(foot_traj_des[2] - right_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - right_toe_Jqdot[2]);
+
+                            // the foot location part
+                            xlddot = Kpx_loc*rdis_x-Kdx_loc*right_toe_Jqdot[0];
+                            ylddot = Kpy_loc*rdis_y-Kdy_loc*right_toe_Jqdot[1];
+                            if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+                                zlddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+                                Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
                             else{
-                                zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                                zlddot = -location_Kpzdown*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
                                 if (phi[1] < contact_phi)
                                     Xddot << 0, 0, zddot;
                                 else
-                                    Xddot << xddot, yddot, zddot;
+                                    Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
+//                            xddot = Kpx_tra*rdis_x-Kdx_tra*right_toe_Jqdot[0];
+//                            yddot = Kpy_tra*rdis_y-Kdy_tra*right_toe_Jqdot[1];
+//                            if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+//                                zddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+//                                Xddot << xddot, yddot, zddot;
+//                            }
+//                            else{
+//                                zddot = -KpzTraj*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
+//                                if (phi[1] < contact_phi)
+//                                    Xddot << 0, 0, zddot;
+//                                else
+//                                    Xddot << xddot, yddot, zddot;
+//                            }
                             JSwing << right_toe_jaco;
                             JdotqdotSwing << right_toe_jacodotv;
                             Aeq_slack3 << JSwing, -I;
@@ -635,12 +919,13 @@ namespace qpControl {
                             Q_slack3 *= W6;
                             this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
+                            impulse_push = IMPULSE_TIME;
                         } else if (left_is_stance && count==2) { // left stance impact phase
                             // stance leg constraint
                             cout << "======left is stance==impact pahse===4===" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
-                            JqdotStance << alpha*right_toe_Jqdot;
+                            JqdotStance << ALPHA*right_toe_Jqdot;
                             beq_slack2 << -JdotqdotStance-JqdotStance;
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -651,11 +936,11 @@ namespace qpControl {
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                             // swing leg constraint
-                            double dis_x = next_stance[0] - left_toe_pos[0];
-                            double dis_y = next_stance[1] - left_toe_pos[1];
-                            xddot = Kpxi*dis_x-Kdxi*left_toe_Jqdot[0];
-                            yddot = Kpyi*dis_y-Kdyi*left_toe_Jqdot[1];
-                            zddot = KpzUPi * (ZH - left_toe_pos[2]) - KdzUPi * left_toe_Jqdot[2];
+
+
+                            xddot = kpxi*ldis_x-kdxi*left_toe_Jqdot[0];
+                            yddot = kpyi*ldis_y-kdyi*left_toe_Jqdot[1];
+                            zddot = kpzi * (ZH - left_toe_pos[2]) - kdzi * left_toe_Jqdot[2];
                             Xddot << xddot, yddot, zddot;
                             JSwing << left_toe_jaco;
                             JdotqdotSwing << left_toe_jacodotv;
@@ -671,11 +956,14 @@ namespace qpControl {
                         } else if (!left_is_stance && count==1) {
                             // stance leg constraint
                             replanning = true;
-                            foot_step_error += next_stance[0] - left_toe_pos[0];
+                            vcom_offset(0,0) = vcom[0];
+                            vcom_offset(1,0) = vcom[1];
+                            vcom_offset(2,0) = vcom[2];
+//                            foot_step_error += next_stance[0] - left_toe_pos[0];
                             cout << "======right is stance===5=====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
-                            JqdotStance << alpha*right_toe_Jqdot;
+                            JqdotStance << ALPHA*right_toe_Jqdot;
                             beq_slack2 << -JdotqdotStance-JqdotStance;
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -686,21 +974,37 @@ namespace qpControl {
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                             // swing leg constraint
-                            double dis_x = next_stance[0] - left_toe_pos[0];
-                            double dis_y = next_stance[1] - left_toe_pos[1];
-                            xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
-                            yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                            if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
-                                zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
-                                Xddot << xddot, yddot, zddot;
+
+                            xddot = Kpx_tra*(foot_traj_des[0] - left_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - left_toe_Jqdot[0]);
+                            yddot = Kpy_tra*(foot_traj_des[1] - left_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - left_toe_Jqdot[1]);
+                            zddot = KpzTraj*(foot_traj_des[2] - left_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - left_toe_Jqdot[2]);
+
+                            xlddot = Kpx_loc*ldis_x-Kdx_loc*left_toe_Jqdot[0];
+                            ylddot = Kpy_loc*ldis_y-Kdy_loc*left_toe_Jqdot[1];
+                            if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+                                zlddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+                                Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
                             else{
-                                zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                                zlddot = -location_Kpzdown*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
                                 if (phi[0] < contact_phi)
                                     Xddot << 0, 0, zddot;
                                 else
-                                    Xddot << xddot, yddot, zddot;
+                                    Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
+//                            xddot = Kpx_tra*ldis_x-Kdx_tra*left_toe_Jqdot[0];
+//                            yddot = Kpy_tra*ldis_y-Kdy_tra*left_toe_Jqdot[1];
+//                            if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+//                                zddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+//                                Xddot << xddot, yddot, zddot;
+//                            }
+//                            else{
+//                                zddot = -KpzTraj*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
+//                                if (phi[0] < contact_phi)
+//                                    Xddot << 0, 0, zddot;
+//                                else
+//                                    Xddot << xddot, yddot, zddot;
+//                            }
                             JSwing << left_toe_jaco;
                             JdotqdotSwing << left_toe_jacodotv;
                             Aeq_slack3 << JSwing, -I;
@@ -711,12 +1015,14 @@ namespace qpControl {
                             Q_slack3.setIdentity();
                             Q_slack3 *= W6;
                             this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                            impulse_push = IMPULSE_TIME;
                         } else { // right stance impact phase
                             // stance leg constraint/**/
                             std::cout << "=======right is stance==impact phase==6====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
-                            JqdotStance << alpha*left_toe_Jqdot;
+                            JqdotStance << ALPHA*left_toe_Jqdot;
                             beq_slack2 << -JdotqdotStance-JqdotStance;
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -727,11 +1033,11 @@ namespace qpControl {
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                             // swing leg constraint
-                            double dis_x = next_stance[0] - right_toe_pos[0];
-                            double dis_y = next_stance[1] - right_toe_pos[1];
-                            xddot = Kpxi*dis_x-Kdxi*right_toe_Jqdot[0];
-                            yddot = Kpyi*dis_y-Kdyi*right_toe_Jqdot[1];
-                            zddot = KpzUPi * (ZH - right_toe_pos[2]) - KdzUPi * right_toe_Jqdot[2];
+
+
+                            xddot = kpxi*rdis_x-kdxi*right_toe_Jqdot[0];
+                            yddot = kpyi*rdis_y-kdyi*right_toe_Jqdot[1];
+                            zddot = kpzi * (ZH - right_toe_pos[2]) - kdzi * right_toe_Jqdot[2];
                             Xddot << xddot, yddot, zddot;
                             JSwing << right_toe_jaco;
                             JdotqdotSwing << right_toe_jacodotv;
@@ -748,10 +1054,11 @@ namespace qpControl {
                     } else {
                         if (left_is_stance) {  // if left is the stance leg, then swing
                             // stance leg constraint
+                            lock = 0;
                             std::cout << "=======left is stance===7=====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
-                            JqdotStance << alpha*left_toe_Jqdot;
+                            JqdotStance << ALPHA*left_toe_Jqdot;
                             beq_slack2 << -JdotqdotStance-JqdotStance;
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -762,21 +1069,37 @@ namespace qpControl {
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                             // swing leg constraint
-                            double dis_x = next_stance[0] - right_toe_pos[0];
-                            double dis_y = next_stance[1] - right_toe_pos[1];
-                            xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
-                            yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
-                            if (fabs(dis_x) + fabs(dis_y) >= THRESH){
-                                zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
-                                Xddot << xddot, yddot, zddot;
+
+                            xddot = Kpx_tra*(foot_traj_des[0] - right_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - right_toe_Jqdot[0]);
+                            yddot = Kpy_tra*(foot_traj_des[1] - right_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - right_toe_Jqdot[1]);
+                            zddot = KpzTraj*(foot_traj_des[2] - right_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - right_toe_Jqdot[2]);
+
+                            xlddot = Kpx_loc*rdis_x-Kdx_loc*right_toe_Jqdot[0];
+                            ylddot = Kpy_loc*rdis_y-Kdy_loc*right_toe_Jqdot[1];
+                            if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+                                zlddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+                                Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
                             else{
-                                zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                                zlddot = -location_Kpzdown*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
                                 if (phi[1] < contact_phi)
                                     Xddot << 0, 0, zddot;
                                 else
-                                    Xddot << xddot, yddot, zddot;
+                                    Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
+//                            xddot = Kpx_tra*rdis_x-Kdx_tra*right_toe_Jqdot[0];
+//                            yddot = Kpy_tra*rdis_y-Kdy_tra*right_toe_Jqdot[1];
+//                            if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+//                                zddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+//                                Xddot << xddot, yddot, zddot;
+//                            }
+//                            else{
+//                                zddot = -KpzTraj*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
+//                                if (phi[1] < contact_phi)
+//                                    Xddot << 0, 0, zddot;
+//                                else
+//                                    Xddot << xddot, yddot, zddot;
+//                            }
                             JSwing << right_toe_jaco;
                             JdotqdotSwing << right_toe_jacodotv;
                             Aeq_slack3 << JSwing, -I;
@@ -791,10 +1114,11 @@ namespace qpControl {
 
                         } else {    // if right is the stance leg, then swing
                             // stance leg constraint
+                            lock = 1;
                             cout << "======right is stance====8====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
-                            JqdotStance << alpha*right_toe_Jqdot;
+                            JqdotStance << ALPHA*right_toe_Jqdot;
                             beq_slack2 << -JdotqdotStance-JqdotStance;
                             Aeq_slack2 << JStance, -I;
                             this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -805,21 +1129,37 @@ namespace qpControl {
                             this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                             // swing leg constraint
-                            double dis_x = next_stance[0] - left_toe_pos[0];
-                            double dis_y = next_stance[1] - left_toe_pos[1];
-                            xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
-                            yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                            if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
-                                zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
-                                Xddot << xddot, yddot, zddot;
+
+                            xddot = Kpx_tra*(foot_traj_des[0] - left_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - left_toe_Jqdot[0]);
+                            yddot = Kpy_tra*(foot_traj_des[1] - left_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - left_toe_Jqdot[1]);
+                            zddot = KpzTraj*(foot_traj_des[2] - left_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - left_toe_Jqdot[2]);
+
+                            xlddot = Kpx_loc*ldis_x-Kdx_loc*left_toe_Jqdot[0];
+                            ylddot = Kpy_loc*ldis_y-Kdy_loc*left_toe_Jqdot[1];
+                            if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+                                zlddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+                                Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
                             else{
-                                zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                                zlddot = -KpzTraj*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
                                 if (phi[0] < contact_phi)
                                     Xddot << 0, 0, zddot;
                                 else
-                                    Xddot << xddot, yddot, zddot;
+                                    Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                             }
+//                            xddot = Kpx_tra*ldis_x-Kdx_tra*left_toe_Jqdot[0];
+//                            yddot = Kpy_tra*ldis_y-Kdy_tra*left_toe_Jqdot[1];
+//                            if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+//                                zddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+//                                Xddot << xddot, yddot, zddot;
+//                            }
+//                            else{
+//                                zddot = -KpzTraj*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
+//                                if (phi[0] < contact_phi)
+//                                    Xddot << 0, 0, zddot;
+//                                else
+//                                    Xddot << xddot, yddot, zddot;
+//                            }
                             JSwing << left_toe_jaco;
                             JdotqdotSwing << left_toe_jacodotv;
                             Aeq_slack3 << JSwing, -I;
@@ -831,6 +1171,7 @@ namespace qpControl {
                             Q_slack3 *= W6;
                             this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
                         }
+                        impulse_push = IMPULSE_TIME;
                     }
                 } else {
                     count_num_change = true;
@@ -839,7 +1180,7 @@ namespace qpControl {
                         std::cout << "=======left is stance===9=====" << std::endl;
                         JStance << left_toe_jaco;
                         JdotqdotStance << left_toe_jacodotv;
-                        JqdotStance << alpha*left_toe_Jqdot;
+                        JqdotStance << ALPHA*left_toe_Jqdot;
                         beq_slack2 << -JdotqdotStance-JqdotStance;
                         Aeq_slack2 << JStance, -I;
                         this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -850,21 +1191,37 @@ namespace qpControl {
                         this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                         // swing leg constraint
-                        double dis_x = next_stance[0] - right_toe_pos[0];
-                        double dis_y = next_stance[1] - right_toe_pos[1];
-                        xddot = Kpx*dis_x-Kdx*right_toe_Jqdot[0];
-                        yddot = Kpy*dis_y-Kdy*right_toe_Jqdot[1];
-                        if (fabs(dis_x) + fabs(dis_y) >= THRESH){
-                            zddot = KpzUP * (ZH - right_toe_pos[2]) - KdzUP * right_toe_Jqdot[2];
-                            Xddot << xddot, yddot, zddot;
+
+                        xddot = Kpx_tra*(foot_traj_des[0] - right_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - right_toe_Jqdot[0]);
+                        yddot = Kpy_tra*(foot_traj_des[1] - right_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - right_toe_Jqdot[1]);
+                        zddot = KpzTraj*(foot_traj_des[2] - right_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - right_toe_Jqdot[2]);
+
+                        xlddot = Kpx_loc*rdis_x-Kdx_loc*right_toe_Jqdot[0];
+                        ylddot = Kpy_loc*rdis_y-Kdy_loc*right_toe_Jqdot[1];
+                        if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+                            zlddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+                            Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                         }
                         else{
-                            zddot = -KpzDOWN*right_toe_pos[2] - KdzDOWN*right_toe_Jqdot[2];
+                            zlddot = -location_Kpzdown*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
                             if (phi[1] < contact_phi)
                                 Xddot << 0, 0, zddot;
                             else
-                                Xddot << xddot, yddot, zddot;
+                                Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                         }
+//                        xddot = Kpx_tra*rdis_x-Kdx_tra*right_toe_Jqdot[0];
+//                        yddot = Kpy_tra*rdis_y-Kdy_tra*right_toe_Jqdot[1];
+//                        if (fabs(rdis_x) + fabs(rdis_y) >= THRESH){
+//                            zddot = KpzUP_loc * (ZH - right_toe_pos[2]) - KdzUP_loc * right_toe_Jqdot[2];
+//                            Xddot << xddot, yddot, zddot;
+//                        }
+//                        else{
+//                            zddot = -KpzTraj*right_toe_pos[2] - KdzDOWN_loc*right_toe_Jqdot[2];
+//                            if (phi[1] < contact_phi)
+//                                Xddot << 0, 0, zddot;
+//                            else
+//                                Xddot << xddot, yddot, zddot;
+//                        }
                         JSwing << right_toe_jaco;
                         JdotqdotSwing << right_toe_jacodotv;
                         Aeq_slack3 << JSwing, -I;
@@ -876,12 +1233,14 @@ namespace qpControl {
                         Q_slack3 *= W6;
                         this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
+                        impulse_push = IMPULSE_TIME;
                     } else if (left_is_stance && count==2) { // left stance impact phase
                         // stance leg constraint
+                        lock = 1;
                         cout << "======left is stance==impact pahse====10==" << endl;
                         JStance << right_toe_jaco;
                         JdotqdotStance << right_toe_jacodotv;
-                        JqdotStance << alpha*right_toe_Jqdot;
+                        JqdotStance << ALPHA*right_toe_Jqdot;
                         beq_slack2 << -JdotqdotStance-JqdotStance;
                         Aeq_slack2 << JStance, -I;
                         this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -892,11 +1251,9 @@ namespace qpControl {
                         this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                         // swing leg constraint
-                        double dis_x = next_stance[0] - left_toe_pos[0];
-                        double dis_y = next_stance[1] - left_toe_pos[1];
-                        xddot = Kpxi*dis_x-Kdxi*left_toe_Jqdot[0];
-                        yddot = Kpyi*dis_y-Kdyi*left_toe_Jqdot[1];
-                        zddot = KpzUPi * (ZH - left_toe_pos[2]) - KdzUPi * left_toe_Jqdot[2];
+                        xddot = kpxi*ldis_x-kdxi*left_toe_Jqdot[0];
+                        yddot = kpyi*ldis_y-kdyi*left_toe_Jqdot[1];
+                        zddot = kpzi * (ZH - left_toe_pos[2]) - kdzi * left_toe_Jqdot[2];
                         Xddot << xddot, yddot, zddot;
                         JSwing << left_toe_jaco;
                         JdotqdotSwing << left_toe_jacodotv;
@@ -914,7 +1271,7 @@ namespace qpControl {
                         cout << "======right is stance====11====" << endl;
                         JStance << right_toe_jaco;
                         JdotqdotStance << right_toe_jacodotv;
-                        JqdotStance << alpha*right_toe_Jqdot;
+                        JqdotStance << ALPHA*right_toe_Jqdot;
                         beq_slack2 << -JdotqdotStance-JqdotStance;
                         Aeq_slack2 << JStance, -I;
                         this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -925,21 +1282,37 @@ namespace qpControl {
                         this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                         // swing leg constraint
-                        double dis_x = next_stance[0] - left_toe_pos[0];
-                        double dis_y = next_stance[1] - left_toe_pos[1];
-                        xddot = Kpx*dis_x-Kdx*left_toe_Jqdot[0];
-                        yddot = Kpy*dis_y-Kdy*left_toe_Jqdot[1];
-                        if (fabs(dis_x)+fabs(dis_y) >= THRESH) {
-                            zddot = KpzUP * (ZH - left_toe_pos[2]) - KdzUP * left_toe_Jqdot[2];
-                            Xddot << xddot, yddot, zddot;
+
+                        xddot = Kpx_tra*(foot_traj_des[0] - left_toe_pos[0]) + Kdx_tra*(foot_traj_des[3] - left_toe_Jqdot[0]);
+                        yddot = Kpy_tra*(foot_traj_des[1] - left_toe_pos[1]) + Kdy_tra*(foot_traj_des[4] - left_toe_Jqdot[1]);
+                        zddot = KpzTraj*(foot_traj_des[2] - left_toe_pos[2]) + KdzTraj*(foot_traj_des[5] - left_toe_Jqdot[2]);
+
+                        xlddot = Kpx_loc*ldis_x-Kdx_loc*left_toe_Jqdot[0];
+                        ylddot = Kpy_loc*ldis_y-Kdy_loc*left_toe_Jqdot[1];
+                        if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+                            zlddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+                            Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                         }
                         else{
-                            zddot = -KpzDOWN*left_toe_pos[2] - KdzDOWN*left_toe_Jqdot[2];
+                            zlddot = -location_Kpzdown*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
                             if (phi[0] < contact_phi)
                                 Xddot << 0, 0, zddot;
                             else
-                                Xddot << xddot, yddot, zddot;
+                                Xddot << xddot+xlddot, yddot+ylddot, zddot+zlddot;
                         }
+//                        xddot = Kpx_tra*ldis_x-Kdx_tra*left_toe_Jqdot[0];
+//                        yddot = Kpy_tra*ldis_y-Kdy_tra*left_toe_Jqdot[1];
+//                        if (fabs(ldis_x)+fabs(ldis_y) >= THRESH) {
+//                            zddot = KpzUP_loc * (ZH - left_toe_pos[2]) - KdzUP_loc * left_toe_Jqdot[2];
+//                            Xddot << xddot, yddot, zddot;
+//                        }
+//                        else{
+//                            zddot = -KpzTraj*left_toe_pos[2] - KdzDOWN_loc*left_toe_Jqdot[2];
+//                            if (phi[0] < contact_phi)
+//                                Xddot << 0, 0, zddot;
+//                            else
+//                                Xddot << xddot, yddot, zddot;
+//                        }
                         JSwing << left_toe_jaco;
                         JdotqdotSwing << left_toe_jacodotv;
                         Aeq_slack3 << JSwing, -I;
@@ -950,13 +1323,16 @@ namespace qpControl {
                         Q_slack3.setIdentity();
                         Q_slack3 *= W6;
                         this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
+
+                        impulse_push = IMPULSE_TIME;
                     } else { // right stance impact phase
                         cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
+                        lock = 0;
                         // stance leg constraint
                         std::cout << "=======right is stance==impact phase==12====" << std::endl;
                         JStance << left_toe_jaco;
                         JdotqdotStance << left_toe_jacodotv;
-                        JqdotStance << alpha*left_toe_Jqdot;
+                        JqdotStance << ALPHA * left_toe_Jqdot;
                         beq_slack2 << -JdotqdotStance-JqdotStance;
                         Aeq_slack2 << JStance, -I;
                         this->con_slack2_->UpdateCoefficients(Aeq_slack2, beq_slack2);
@@ -967,11 +1343,11 @@ namespace qpControl {
                         this->cost_slack2_->UpdateCoefficients(Q_slack2, b_slack2);
 
                         // swing leg constraint
-                        double dis_x = next_stance[0] - right_toe_pos[0];
-                        double dis_y = next_stance[1] - right_toe_pos[1];
-                        xddot = Kpxi*dis_x-Kdxi*right_toe_Jqdot[0];
-                        yddot = Kpyi*dis_y-Kdyi*right_toe_Jqdot[1];
-                        zddot = KpzUPi * (ZH - right_toe_pos[2]) - KdzUPi * right_toe_Jqdot[2];
+
+
+                        xddot = kpxi*rdis_x-kdxi*right_toe_Jqdot[0];
+                        yddot = kpyi*rdis_y-kdyi*right_toe_Jqdot[1];
+                        zddot = kpzi * (ZH - right_toe_pos[2]) - kdzi * right_toe_Jqdot[2];
                         Xddot << xddot, yddot, zddot;
                         JSwing << right_toe_jaco;
                         JdotqdotSwing << right_toe_jacodotv;
@@ -988,75 +1364,199 @@ namespace qpControl {
                 }
             }
 
+
             // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
 
-            std::cout << "|=======com_des========\t" << "|========COM======\t"
-                      << "|======COM velocity====\t" << "|=====COMdot_des==\t"
-                      << "|==right toe pos=======\t" << "|==right toe velocity=\t"
-                      << "|==left toe pos========\t" << "|===left toe velocity=\t"
-                      << std::endl;
-            for (int k = 0; k < 3; ++k) {
-                std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
-                std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
-                std::cout << "|"<<std::fixed<<std::setprecision(8)<< vcom[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << xcom_des.segment(3,3)[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_pos[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_Jqdot[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_pos[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_Jqdot[k] << "\t\t";
-                std::cout << "\n";
-            }
-
-            // print all dicision variables out ------------------------------------------------------------
-            std::cout <<"|==========q=======\t"<<"|========v=========\t" <<
-            "|=========vdot=========\t" << "|==========u==========\t"
-            << "|=========beta=========\t" <<  "|=====yita stance====\t"
-            << "|======yita swing======\t" << "|=====Xfootddot========\t" <<  std::endl;
-            for (int k = 0; k < NQ; ++k) {
-                cout << "|" << std::fixed<<std::setprecision(8) << q[k] << "\t\t";
-                cout << "|" << std::fixed<<std::setprecision(8) << qd[k] << "\t\t";
-                std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
-                if (k<NU) // u
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
-                else
-                    std::cout <<"|"<< "\t\t\t";
-                if (k<NF) // beta
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
-                else
-                    std::cout <<"|"<< "\t\t\t";
+//            cout << "<<<<<<<<<<<<<<<<<lock:" << lock << ">>>>>>>>>>>>>>>>>>>>" << endl;
+//            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
+//                 << "\tcount_num_change:" << count_num_change << "\t left_is_stance:" << left_is_stance <<
+//                 "\tthis_stance" << this_stance[0] << "\tnext_stance" << next_stance[0] << endl;
+//            std::cout << "|=======com_des========\t" << "|========COM======\t"
+//                      << "|======COM velocity====\t" << "|=====COMdot_des==\t"
+//                      << "|==right toe pos=======\t" << "|==right toe velocity=\t"
+//                      << "|==left toe pos========\t" << "|===left toe velocity=\t"
+//                      << std::endl;
+//            for (int k = 0; k < 3; ++k) {
+//                std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
+//                std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
+//                std::cout << "|"<<std::fixed<<std::setprecision(8)<< vcom[k] << "\t\t";
+//                cout << "|" << std::fixed<<std::setprecision(8) << xcom_des.segment(3,3)[k] << "\t\t";
+//                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_pos[k] << "\t\t";
+//                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_Jqdot[k] << "\t\t";
+//                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_pos[k] << "\t\t";
+//                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_Jqdot[k] << "\t\t";
+//                std::cout << "\n";
+//            }
+//
+//            // print all dicision variables out ------------------------------------------------------------
+//            std::cout <<"|==========q=======\t"<<"|========v=========\t" <<
+//            "|=========vdot=========\t" << "|==========u==========\t"
+//            << "|=========beta=========\t" <<  "|==yita=stance swing==\t"
+//            << "|======foot des tra====\t" << "|=====eps========\t" <<  std::endl;
+//            for (int k = 0; k < NQ; ++k) {
+//                cout << "|" << std::fixed<<std::setprecision(8) << q[k] << "\t\t";
+//                cout << "|" << std::fixed<<std::setprecision(8) << qd[k] << "\t\t";
+//                std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
+//                if (k<NU) // u
+//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
+//                else
+//                    std::cout <<"|"<< "\t\t\t";
+//                if (k<NF) // beta
+//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
+//                else
+//                    std::cout <<"|"<< "\t\t\t";
+//                if (k<6){ // yita_stance then swing
+//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,6)[k] << "\t\t";
+//                }
+//                else
+//                    std::cout <<"|"<< "\t\t\t";
 //                if (k<2) //eps
 //                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
 //                else
 //                    std::cout << "|" << "\t\t\t";
-                if (k<3) // yita_stance
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,3)[k] << "\t\t";
-                else
-                    std::cout <<"|"<< "\t\t\t";
-                if (k<3) // yita_swing
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+5,3)[k] << "\t\t";
-                else
-                    std::cout <<"|"<< "\t\t\t";
-                if (k<3)
-                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< Xddot[k] << "\t\t";
-                else
-                    cout << "|" << "\t\t\t";
-//                if (k<2) // discrete state
-//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
-//                else
-//                    std::cout << "|" << "\t\t\t";
-                std::cout << "\n";
-            }
+////                if (k<3) // yita_stance
+////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,3)[k] << "\t\t";
+////                else
+////                    std::cout <<"|"<< "\t\t\t";
+////                if (k<6) // desried foot trajectory
+////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< foot_traj_des[k] << "\t\t";
+////                else
+////                    std::cout <<"|"<< "\t\t\t";
+////                if (k<3)
+////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< Xddot[k] << "\t\t";
+////                else
+////                    cout << "|" << "\t\t\t";
+////                if (k<2) // discrete state
+////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
+////                else
+////                    std::cout << "|" << "\t\t\t";
+//                std::cout << "\n";
+//            }
+            Eigen::Matrix<double, 3, 1> bias_mass(0,0,0);
+            auto left_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, 8, 0);
+            auto left_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, 6, 0);
+            auto right_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, 12, 0);
+            auto right_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, 10, 0);
+            auto hip_mass = rtree_->transformPoints(kinsol, bias_mass, 2, 0);
+            auto llowleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 8, 0, true)*qd;
+            auto luppleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 6, 0, true)*qd;
+            auto rlowleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 12, 0, true)*qd;
+            auto ruppleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 10, 0, true)*qd;
+            auto hip_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 2, 0, true)*qd;
+
+            auto K = qd.transpose()*H*qd/2;
+            auto V = 2.5*9.81*(left_lowleg_mass(2,0)+left_upleg_mass(2,0)+right_lowleg_mass(2,0)+right_upleg_mass(2,0)) +
+                    10*9.81*hip_mass(2,0);
+            auto W =K(0,0)+V;
+
             updates->get_mutable_vector().SetFromVector(u);
-            COM_FOOT << xcom_des, com, vcom, right_toe_pos, left_toe_pos;
+            COM_FOOT << xcom_des, com, vcom, right_toe_pos, left_toe_pos, foot_traj_des,
+                        left_lowleg_mass(1,0), left_upleg_mass(1,0), right_lowleg_mass(1,0), right_upleg_mass(1,0), hip_mass(1,0),
+                        llowleg_v(1,0), luppleg_v(1,0), rlowleg_v(1,0), ruppleg_v(1,0), hip_v(1,0), W, K, V;
             t_pre = u;
+
+            // recored all the states
+            sim_time += h;
+            t_pre_ = t_pre;
+            m_ = m;
+            count_num_ = count_num;
+            count_num_change_ = count_num_change;
+            step_num_ = step_num;
+            replanning_ = replanning;
+            isNew_ = isNew;
+            stance_now_ = stance_now;
+            }
+        }
+
+        void AbstractUpdate(const systems::Context<double> & context,
+                            systems::State<double> *state) const {
+            auto& a_state = context.get_abstract_state();
+            const bool& modified = context.get_abstract_state<bool>(12);
+            if (modified) {
+                period_state_ = a_state.get_value(0).get_value<int>();
+                sim_time = a_state.get_value(1).get_value<double>();
+                t_pre_ = a_state.get_value(3).get_value<Eigen::Matrix<double, NU, 1>>();
+                m_ = a_state.get_value(4).get_value<int>();
+                count_num_ = a_state.get_value(5).get_value<int>();
+                count_num_change_ = a_state.get_value(6).get_value<bool>();
+                step_num_ = a_state.get_value(7).get_value<int>();
+                replanning_ = a_state.get_value(8).get_value<bool>();
+                isNew_ = a_state.get_value(9).get_value<bool>();
+                stance_now_ = a_state.get_value(10).get_value<double>();
+                location_bias_ = a_state.get_value(11).get_value<double>();
+                modified_ = modified;
+                incline_ = a_state.get_value(13).get_value<int>();
+                fail_times_ = a_state.get_value(14).get_value<int>();
+                context_changed_ = true;
+                semophore_ = true;
+            } // stack pull
+
+            if (modified_ && context_changed_) {
+                modified_ = false;
+                context_changed_ = false;
+            }
+
+            state->template get_mutable_abstract_state<int>(0) = period_state_;
+            state->template get_mutable_abstract_state<double>(1) = sim_time;
+            state->template get_mutable_abstract_state<double>(2) = t;
+            state->template get_mutable_abstract_state<Eigen::Matrix<double, NU, 1>>(3) = t_pre_;
+            state->template get_mutable_abstract_state<int>(4) = m_;
+            state->template get_mutable_abstract_state<int>(5) = count_num_;
+            state->template get_mutable_abstract_state<bool>(6) = count_num_change_;
+            state->template get_mutable_abstract_state<int>(7) = step_num_;
+            state->template get_mutable_abstract_state<bool>(8) = replanning_;
+            state->template get_mutable_abstract_state<bool>(9) = isNew_;
+            state->template get_mutable_abstract_state<double>(10) = stance_now_;
+            state->template get_mutable_abstract_state<double>(11) = location_bias_;
+            state->template get_mutable_abstract_state<bool>(12) = modified_;
+            state->template get_mutable_abstract_state<int >(13) = incline_;
+            state->template get_mutable_abstract_state<int >(14) = fail_times_;
+
+            std::cout << "abstract update" << std::endl;
+        }
+
+        int update_automata(bool isNew, int step_num, double vcom_saggital) const {
+            static double end_velocity = 0, lowest_velocity = 1;
+            static int m = 300;
+            if (vcom_saggital < lowest_velocity)
+                lowest_velocity = vcom_saggital;
+            else if (m > 0)
+                m--;
+            if (m == 0 && vcom_saggital > end_velocity)
+                end_velocity = vcom_saggital;
+
+            std::cout << "actual_com_saggittal velocity:" << vcom_saggital << std::endl;
+            std::cout << "end_velocity:" << end_velocity << "\tlowest velocity:" << lowest_velocity << std::endl;
+
+            // reinitilization
+            if (step_num>15 && isNew) {
+                    if (lowest_velocity > Lowest_V+BandWidth_L) {
+                        incline_ = -1; fail_times_++;
+                        m = 300; end_velocity = 0; lowest_velocity = 1;
+                        return 0; // trajectory corrupt
+                    } else if (lowest_velocity < Lowest_V) { //end_velocity > Highest_V ||
+                        incline_ = 1; fail_times_ ++;
+                        m = 300; end_velocity = 0; lowest_velocity = 1;
+                        return 0; // trajectory corrupt
+                    }
+                    m = 300; end_velocity = 0; lowest_velocity = 1;
+                    return 1;// a new piece of trajectory
+            } else if (isNew) {
+                m = 300;
+                end_velocity = 0;
+                lowest_velocity = 1;
+                std::cout << "cause is new \t";
+            }
+            return 2;
         }
 
         void CopyCommandOutSim(const systems::Context<double>& context,
                              drake::examples::KneedCompassGait::KcgInput<double>* output) const {
             t = context.get_time();
+//            std::cout << "copy state out:" << context.get_discrete_state()[2] << "\t output time:" << t << std::endl;
             output->set_hrtau(context.get_discrete_state()[0]);
             output->set_htau(context.get_discrete_state()[1]);
             output->set_ltau(context.get_discrete_state()[2]);
@@ -1093,7 +1593,6 @@ namespace qpControl {
         }
 
         Eigen::Matrix<double, 3, m_surface_tangents> surfaceTangents(Eigen::Vector3d normal) const {
-         //   std::cout << " ok4 " << std::endl;
             const double kEpsilon = 1e-8;
             Eigen::Vector3d t1;
             Eigen::Vector3d t2;
@@ -1120,7 +1619,6 @@ namespace qpControl {
                                KinematicsCache<double> &cache, RigidBody<double> &lfoot,
                                RigidBody<double> &rfoot, bool in_terms_of_qdot,
                                Eigen::MatrixXd &JB) const {
-         //   std::cout << " ok5 " << std::endl;
             Eigen::MatrixXd J = contactJacobian(r, cache, lfoot, rfoot, in_terms_of_qdot);
             // assume flat terrain at z=0 for now
             Eigen::Vector3d normal;
@@ -1128,7 +1626,6 @@ namespace qpControl {
             Eigen::Matrix<double, 3, m_surface_tangents> d = surfaceTangents(normal);
 
             int inc = J.rows() / 3;
-//            std::cout << "===================contact point number:" << inc << std::endl;
             int ncols = inc * m_surface_tangents;
             int nrows;
             if (in_terms_of_qdot) {
@@ -1207,13 +1704,15 @@ namespace qpControl {
         mutable bool left_is_stance;
         std::vector<std::vector<double>> trajectory_;
         std::vector<std::vector<double>> foot_step_;
+        std::vector<std::vector<double>> foot_trajectory_;
         Eigen::Matrix<double, NU, NU> weight_t_;
         Eigen::Matrix<double, 1, 1> weight_yaw_;
         Eigen::Matrix<double, 2, 2> weight_slack_;
         Eigen::Matrix<double, 3, 3> weight_slack2_;
         Eigen::Matrix<double, 3, 3> weight_slack3_;
-        Eigen::Matrix<double, 2, 4> Aeq_slack;
-        mutable Eigen::Matrix<double, 18, 1> COM_FOOT;
+        mutable Eigen::Matrix<double, 2, 4> Aeq_slack;
+        mutable Eigen::Matrix<double, 37, 1> COM_FOOT;
+//        std::unique_ptr<systems::Context<double>> self_context;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dynf_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dyna_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_slack_;
@@ -1239,7 +1738,23 @@ namespace qpControl {
         std::unique_ptr<RigidBodyTree<double>> rtree_;
         RigidBody<double>* lfoot_;
         RigidBody<double>* rfoot_;
-        mutable double t;
+        mutable bool context_changed_ = false;
+        mutable double t, sim_time = 0;
+        double h = 0.0005;
+        mutable int period_state_=2;
+        mutable Eigen::Matrix<double, NU, 1> t_pre_;
+        mutable int m_=0;
+        mutable int count_num_ = 1;
+        mutable bool count_num_change_ = false;
+        mutable int step_num_ = 1;
+        mutable bool replanning_ = false;
+        mutable bool isNew_ = false;
+        mutable double stance_now_ = -1.2;
+        mutable double location_bias_ = 0;
+        mutable bool modified_ = false; // modified means went through one simulator.AdvanceTo
+        mutable bool semophore_ = false;
+        mutable int incline_ = 0; // 0 means no incline, -1 means too low, 1 means too large
+        mutable int fail_times_ = 0;
     };
 }
 }

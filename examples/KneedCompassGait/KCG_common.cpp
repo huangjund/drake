@@ -2,8 +2,8 @@
 // Created by Junda on 8/9/19.
 //
 #include "drake/examples/KneedCompassGait/KCG_common.h"
-#include "drake/examples/KneedCompassGait/system.h"
-
+//#include "drake/examples/KneedCompassGait/linear_system.h"
+//#include "drake/examples/KneedCompassGait/system.h"
 
 namespace drake {
 namespace examples {
@@ -56,11 +56,23 @@ namespace kkk {
 
     VectorX<double> KCGFixedPointState() {
         VectorX<double> ret(22);
+
+        // left leg stance 0.4
+          ret << -0.9504, 0, 0.8634, 0, 0.3300, 0,
+                  0, 0.4053, -1.0100, 0, -0.9077,
+                  -0.83, 0, 0.1245, 0, 0, 0,
+                  0, 0, 0, 0, 0;
+//0.3 step length
+//        ret << -0.930, 0, 0.8619, 0, 0.4184, 0,
+//                0, 0.3003, -1.0650, 0, -0.9596,
+//                -1.0, 0, 0.2, 0, 0, 0,
+//                0, 0, 0, 0, 0;
+
         // left leg stance
-        ret <<  -0.9531, 0, 0.8707, 0, 0.7268, 0,
-                0, -0.6283, -0.8361, 0, -0.8424,
-                -1, 0, 0.2, 0, 0, 0,
-                0, 0, 0, 0, 0;
+//        ret <<  -0.9531, 0, 0.8707, 0, 0.7268, 0,
+//                0, -0.6283, -0.8361, 0, -0.8424,
+//                -1, 0, 0.2, 0, 0, 0,
+//                0, 0, 0, 0, 0;
 
         //1
 //        ret << -1.4468+0.5, 0, 0.89, 0, 0.1954, 0,
