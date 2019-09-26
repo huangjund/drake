@@ -64,6 +64,7 @@ drake_cc_binary(
         "quadrotor_base.obj",
         "quadrotor_base.wrl",
         "simulator1.obj",
+        "simulator2.obj",
         "table.obj",
         "table1.obj",
         "table2.obj",

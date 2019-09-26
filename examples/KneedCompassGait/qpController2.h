@@ -76,14 +76,14 @@
 #define FastDownHeight 0.03
 #define ADJUST 0.1
 
-#define Kpy_tra 1000// the Kp of foot coordinate y
-#define Kdy_tra 100 // the Kd of foot coordinate y
-#define Kpy_loc 10000
-#define Kdy_loc 1000
+#define Kpy_tra 0// the Kp of foot coordinate y
+#define Kdy_tra 0 // the Kd of foot coordinate y
+#define Kpy_loc 0
+#define Kdy_loc 0
 
 #define Kpxi 6// the Kp of foot coordinate x
 #define Kdxi 0 // the Kd of foot coordinate x
-#define Kpyi 1 // the Kp of foot coordinate y
+#define Kpyi 0 // the Kp of foot coordinate y
 #define Kdyi 0 // the Kd of foot coordinate y
 #define KpzUPi 3000// the Kp of foot coordinate z, consistent
 #define KdzUPi 0// the Kd of foot coordinate z
@@ -94,17 +94,19 @@
 // trick ground impulse parameters
 #define Kpxip 0// the Kp of foot coordinate x
 #define Kdxip 0 // the Kd of foot coordinate x
-#define Kpyip 1 // the Kp of foot coordinate y
+#define Kpyip 0 // the Kp of foot coordinate y
 #define Kdyip 0 // the Kd of foot coordinate y
 #define KpzUPip 8000// the Kp of foot coordinate z, consistent
 #define KdzUPip 100// the Kd of foot coordinate z
 #define THRESH 0.1 // the up and down tag
 #define IMPULSE_TIME 3 // the impulse push time
 
-#define Highest_V 0.9
-#define BandWidth_H 0.05
-#define Lowest_V 0.59
-#define BandWidth_L 0.02
+#define Lowest_V 0.57
+#define BandWidth_L 0.05
+#define TOP 1.0
+#define BOTTOM 0.5
+
+#define Maxlateralbias 0.001;
 
 // WALKING FOR 8 STEPS
 //#define NQ 11
@@ -226,7 +228,9 @@ namespace qpControl {
             this->DeclareAbstractState(AbstractValue::Make(location_bias_));
             this->DeclareAbstractState(AbstractValue::Make(modified_));
             this->DeclareAbstractState(AbstractValue::Make(incline_));
-            this->DeclareAbstractState(AbstractValue::Make(fail_times_));
+            this->DeclareAbstractState(AbstractValue::Make(refreshed_));
+            this->DeclareAbstractState(AbstractValue::Make(lateral_incline_));
+            this->DeclareAbstractState(AbstractValue::Make(lateral_bias_));
 
             this->DeclareDiscreteState(NU);
 
@@ -453,7 +457,7 @@ namespace qpControl {
             cout << "stance Now:" << stance_now_   <<
                  "\tsim_tim:" << sim_time << "\tt" << t << "\tstep_num:" <<
                  step_num_   << "\tperiod_state:" << period_state_ <<
-                 "\tm:" << m_ << endl;
+                 "\tm:" << m_ << "\tlocation bias:" << location_bias_  << "\tlateral incline" << lateral_bias_ << endl;
 
             if (sim_time <= t-h) {
             VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
@@ -470,7 +474,7 @@ namespace qpControl {
             if (semophore_) {
                 m = m_;
                 count_num = count_num_;count_num_change = count_num_change_;step_num = step_num_;t_pre = t_pre_;
-                incline_ = 0;// fail_times_ = 0;
+                incline_ = 0; lateral_incline_ = 0;
             }
 
           // get the current state and current disired trajectory
@@ -573,30 +577,46 @@ namespace qpControl {
             double ldis_x = next_stance[0] - left_toe_pos[0];
             double ldis_y = next_stance[1] - left_toe_pos[1];
 
-            rdis_x = next_stance[0] - right_toe_pos[0] - location_bias_;
-            ldis_x = next_stance[0] - left_toe_pos[0] - location_bias_;
+            rdis_x = rdis_x - location_bias_;
+            ldis_x = ldis_x - location_bias_;
+            rdis_y = rdis_y - lateral_bias_;
+            ldis_y = ldis_y - lateral_bias_;
 
+//            switch (step_num_) {
+//                case 5:
+//                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.005; // - 0.001;
+//                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.005; // - 0.001;
+//                    break;
+//                case 9:
+//                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.03; // - 0.001;
+//                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.03; // - 0.001;
+//                    break;
+//            }
 
-            switch (step_num_) {
-                case 5:
-                    rdis_x = next_stance[0] - right_toe_pos[0]; // - 0.001;
-                    ldis_x = next_stance[0] - left_toe_pos[0]; // - 0.001;
-                    break;
-                case 6:
-                    rdis_x = next_stance[0] - right_toe_pos[0]-0.03;
-                    ldis_x = next_stance[0] - left_toe_pos[0]-0.03;
-                    break;
-                case 7:
-                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.07;
-                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.07;
-                    break;
-                case 8:
-                    rdis_x = next_stance[0] - right_toe_pos[0] + 0.03; //-0.1;
-                    ldis_x = next_stance[0] - left_toe_pos[0] + 0.03; //-0.1;
-                    break;
-                default:
-                    break;
-            }
+//            switch (step_num_) {
+//                case 5:
+//                    rdis_x = next_stance[0] - right_toe_pos[0]; // - 0.001;
+//                    ldis_x = next_stance[0] - left_toe_pos[0]; // - 0.001;
+//                    break;
+//                case 6:
+//                    rdis_x = next_stance[0] - right_toe_pos[0]-0.03;
+//                    ldis_x = next_stance[0] - left_toe_pos[0]-0.03;
+//                    break;
+//                case 7:
+//                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.07;
+//                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.07;
+//                    break;
+//                case 8:
+//                    rdis_x = next_stance[0] - right_toe_pos[0] + 0.05; //-0.1;
+//                    ldis_x = next_stance[0] - left_toe_pos[0] + 0.05; //-0.1;
+//                    break;
+//                case 9:
+//                    rdis_x = next_stance[0] - right_toe_pos[0] + 0.05; //-0.1;
+//                    ldis_x = next_stance[0] - left_toe_pos[0] + 0.05; //-0.1;
+//                    break;
+//                default:
+//                    break;
+//            }
 
 //            if (step_num == 8) {
 //                rdis_x = next_stance[0] - right_toe_pos[0]+ADJUST;
@@ -743,7 +763,7 @@ namespace qpControl {
 
             double location_Kpzdown = KpzDOWN_loc;
 
-            period_state_ = update_automata(isNew, step_num, -vcom(0,0));
+            period_state_ = update_automata(isNew, step_num, -vcom(0,0), com(1,0));
 
             if (isNew){
                 if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
@@ -1489,7 +1509,9 @@ namespace qpControl {
                 location_bias_ = a_state.get_value(11).get_value<double>();
                 modified_ = modified;
                 incline_ = a_state.get_value(13).get_value<int>();
-                fail_times_ = a_state.get_value(14).get_value<int>();
+                refreshed_ = a_state.get_value(14).get_value<bool>();
+                lateral_incline_ = a_state.get_value(15).get_value<int>();
+                lateral_bias_ = a_state.get_value(16).get_value<double>();
                 context_changed_ = true;
                 semophore_ = true;
             } // stack pull
@@ -1513,44 +1535,106 @@ namespace qpControl {
             state->template get_mutable_abstract_state<double>(11) = location_bias_;
             state->template get_mutable_abstract_state<bool>(12) = modified_;
             state->template get_mutable_abstract_state<int >(13) = incline_;
-            state->template get_mutable_abstract_state<int >(14) = fail_times_;
+            state->template get_mutable_abstract_state<bool>(14) = refreshed_;
+            state->template get_mutable_abstract_state<int>(15) = lateral_incline_;
+            state->template get_mutable_abstract_state<double>(16) = lateral_bias_;
 
             std::cout << "abstract update" << std::endl;
         }
 
-        int update_automata(bool isNew, int step_num, double vcom_saggital) const {
-            static double end_velocity = 0, lowest_velocity = 1;
-            static int m = 300;
-            if (vcom_saggital < lowest_velocity)
-                lowest_velocity = vcom_saggital;
-            else if (m > 0)
-                m--;
-            if (m == 0 && vcom_saggital > end_velocity)
-                end_velocity = vcom_saggital;
+        int update_automata(bool isNew, int step_num, double vcom_saggital, double com_lateral) const {
+            static double lowest_velocity = 1;
+            static int keyframe_num = 0;
+            static bool ticket = false;
+            static int m = 300, n = 300;
+            static bool first = true;
+            static bool protection = false; // to make it proceed for one piece
+            if (step_num > 4) {
+                if (first) {
+                    std::cout << "1" << std::endl;
+                    first = false;
+                    return 4; // recorde mode
+                }
+                if (refreshed_) {
+                    lowest_velocity = 1;
+                    keyframe_num = 0;
+                    m = 300;
+                    n = 300;
+                    ticket = false;
+                    refreshed_ = false;
+                }
 
-            std::cout << "actual_com_saggittal velocity:" << vcom_saggital << std::endl;
-            std::cout << "end_velocity:" << end_velocity << "\tlowest velocity:" << lowest_velocity << std::endl;
-
-            // reinitilization
-            if (step_num>15 && isNew) {
-                    if (lowest_velocity > Lowest_V+BandWidth_L) {
-                        incline_ = -1; fail_times_++;
-                        m = 300; end_velocity = 0; lowest_velocity = 1;
-                        return 0; // trajectory corrupt
-                    } else if (lowest_velocity < Lowest_V) { //end_velocity > Highest_V ||
-                        incline_ = 1; fail_times_ ++;
-                        m = 300; end_velocity = 0; lowest_velocity = 1;
-                        return 0; // trajectory corrupt
+                if (vcom_saggital < lowest_velocity)
+                    lowest_velocity = vcom_saggital;
+                else if (m) {
+                    if (m == 1) {
+                        keyframe_num += 1;
                     }
-                    m = 300; end_velocity = 0; lowest_velocity = 1;
-                    return 1;// a new piece of trajectory
-            } else if (isNew) {
-                m = 300;
-                end_velocity = 0;
-                lowest_velocity = 1;
-                std::cout << "cause is new \t";
+                    m-=1;
+                } else if (n && ticket) {
+                    if (n == 1) {
+                        keyframe_num += 1;
+                    }
+                    n-=1;
+                }
+
+                std::cout << "actual_com_saggittal velocity:" << vcom_saggital
+                            << "\tlowest velocity:" << lowest_velocity <<
+                            "\t keyframe_num:" << keyframe_num << "\tm:" << m << "\tn:" << n << std::endl;
+
+                // state judge
+                if (keyframe_num == 1) {
+                    if (isNew) {
+                        if (protection) {
+                            protection = false;
+                            std::cout << "2" << std::endl;
+                            return 4; // refresh mode
+                        }
+                        if (com_lateral > Maxlateralbias) {
+                            lateral_incline_ = 1;
+                            return 5; // refresh lateral mode
+                        } else if (com_lateral < -Maxlateralbias) {
+                            lateral_incline_ = -1;
+                            return 5; // refresh lateral mode
+                        }
+                        lowest_velocity = 1; ticket = true;
+                    }
+                }
+
+                {
+                    if (vcom_saggital > TOP) {
+                        incline_ = 1;
+                        std::cout << "3" << std::endl;
+                        return 0;
+                    } else if (vcom_saggital < BOTTOM) {
+                        incline_ = -1;
+                        std::cout << "4" << std::endl;
+                        return 0;
+                    }
+                } // if the saggital velocity exceeds the bound
+
+                if (keyframe_num == 2) {
+                    if (isNew) {
+                        std::cout << "5" << std::endl;
+                        return 0;
+                    }
+                    if (lowest_velocity > Lowest_V + BandWidth_L) {
+                        incline_ = 1;
+                        std::cout << "6" << std::endl;
+                        return 0;
+                    } else if (lowest_velocity < Lowest_V) {
+                        incline_ = -1;
+                        std::cout << "7" << std::endl;
+                        return 0; // refresh mode
+                    } else {
+                        protection = true;
+                        std::cout << "8" << std::endl;
+                        return 1; // preceeding one piece mode
+                    }
+                }
+                return 3; // predict mode
             }
-            return 2;
+            return 2; // smoothing mode
         }
 
         void CopyCommandOutSim(const systems::Context<double>& context,
@@ -1754,7 +1838,9 @@ namespace qpControl {
         mutable bool modified_ = false; // modified means went through one simulator.AdvanceTo
         mutable bool semophore_ = false;
         mutable int incline_ = 0; // 0 means no incline, -1 means too low, 1 means too large
-        mutable int fail_times_ = 0;
+        mutable bool refreshed_ = false;
+        mutable int lateral_incline_ = 0;
+        mutable double lateral_bias_ = 0;
     };
 }
 }

@@ -1006,7 +1006,7 @@ void Simulator<T>::AdvanceTo(const T &boundary_time) {
     current_state=context_->template get_abstract_state<int>(0);
 //      std::cout << "model sim tim(in advance to):" << context_->template get_abstract_state<double>(1) << std::endl;
 //      std::cout << "modified(in advance to):" << context_->template get_abstract_state<bool>(12) << std::endl;
-      if (current_state == 0 || current_state == 1)
+      if (current_state == 0 || current_state == 1 || current_state == 4 || current_state == 5)
           break;
       // Break out of the loop after timed and witnessed events are merged in
     // to the event collection and after any publishes.

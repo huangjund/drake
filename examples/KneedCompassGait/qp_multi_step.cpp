@@ -26,8 +26,8 @@
 #include "drake/systems/primitives/signal_logger.h"
 
 #define TIME_RATE 0.5
-#define SIMULATION_TIME 5.2
-#define BOUND 0.2
+#define SIMULATION_TIME 6
+#define BOUND 0.14
 
 namespace drake {
 namespace examples {
@@ -95,7 +95,8 @@ namespace qpControl {
 
         VectorX<double> x = examples::kkk::KCGFixedPointState();
         kcg.set_state_vector(&kcg_mutable_context, x);
-
+        stx::optional<double> accuracy = 1e-14;
+        simulator.get_mutable_context().SetAccuracy(accuracy);
         double c_time=0;// ,d_time=0;
 
         auto& last_sim_context = simulator.get_context();
@@ -121,7 +122,9 @@ namespace qpControl {
         abstract_vector.push_back(last_qp_a_states.get_value(11).Clone()); // location_bias_
         abstract_vector.push_back(last_qp_a_states.get_value(12).Clone()); // modified_
         abstract_vector.push_back(last_qp_a_states.get_value(13).Clone()); // incline_
-        abstract_vector.push_back(last_qp_a_states.get_value(14).Clone()); // fail_times_
+        abstract_vector.push_back(last_qp_a_states.get_value(14).Clone()); // refreshed_
+        abstract_vector.push_back(last_qp_a_states.get_value(15).Clone()); // incline_
+        abstract_vector.push_back(last_qp_a_states.get_value(16).Clone()); // refreshed_
 
         systems::AbstractValues last_AStates(std::move(abstract_vector));
 
@@ -130,8 +133,7 @@ namespace qpControl {
         double bias_lower_bound = -BOUND;
         double bias_higher_bound = BOUND;
         double location_bias = 0;
-
-
+        bool case1_ticket = false;
 
         simulator.Initialize();
         simulator.AdvanceTo(SIMULATION_TIME);
@@ -148,11 +150,13 @@ namespace qpControl {
             c_time = sim_context.get_time(); // get the time
             int incline = qp_a_states.get_value(13).get_value<int>();
             int period_state = qp_a_states.get_value(0).get_value<int>();
+            bool refresh = false;
 
             switch (period_state) {
-                case 1: { // reaches a new piece of trajectory
+                case 4: { // recorde mode
                     location_bias = 0;
-                    std::cout << "case1" << std::endl;
+                    refresh = true;
+                    std::cout << "case4" << std::endl;
                     // state pull
                     auto& sim_mutable_context = simulator.get_mutable_context();
                     auto& KCG_mutable_context = diagram->GetMutableSubsystemContext(kcg, &sim_mutable_context);
@@ -160,8 +164,11 @@ namespace qpControl {
                     auto& qp_mutable_AStates = qp_mutable_context.get_mutable_abstract_state();
                     kcg.set_state_vector(&KCG_mutable_context, kcg_c_states);
                     qp_mutable_AStates.SetFrom(qp_a_states);
+
+                    qp_mutable_AStates.get_mutable_value(11).set_value<double>(location_bias);
                     qp_mutable_AStates.get_mutable_value(12).set_value<bool>(true); // set as modified
                     qp_mutable_AStates.get_mutable_value(0).set_value<int>(2); // reset the period_state
+                    qp_mutable_AStates.get_mutable_value(14).set_value<bool>(refresh);
                     sim_mutable_context.SetTime(c_time);
 
                     // current states becomes last states
@@ -175,7 +182,26 @@ namespace qpControl {
                     bias_lower_bound = -BOUND;
                     break;
                 }
-                case 0: { // trajectory corrupted
+                case 1: { // preceeding one piece mode
+                    refresh = true;
+                    case1_ticket = true;
+                    std::cout << "case1" << std::endl;
+                    auto& sim_mutable_context = simulator.get_mutable_context();
+                    auto& KCG_mutable_context = diagram->GetMutableSubsystemContext(kcg, &sim_mutable_context);
+                    auto& qp_mutable_context = diagram->GetMutableSubsystemContext(*qpcontroller, &sim_mutable_context);
+                    auto& qp_mutable_AStates = qp_mutable_context.get_mutable_abstract_state();
+
+                    // back to the last period state
+                    qp_mutable_AStates.SetFrom(last_AStates); // set the current qp abstract from the last states
+                    qp_mutable_AStates.get_mutable_value(11).set_value<double>(location_bias);
+                    qp_mutable_AStates.get_mutable_value(14).set_value<bool>(refresh);
+                    kcg.set_state_vector(&KCG_mutable_context, last_kcg_c_states);
+                    sim_mutable_context.SetTime(last_c_time);
+                    LastTimeCase = 0;
+                    break;
+                }
+                case 0: { // refresh mode/*/**/*/
+                    refresh = true;/**/
                     std::cout << "case0" << std::endl;
                     // to judge the searching location bias
                     if (LastTimeCase == 1){
@@ -207,16 +233,39 @@ namespace qpControl {
                     // back to the last period state
                     qp_mutable_AStates.SetFrom(last_AStates); // set the current qp abstract from the last states
                     qp_mutable_AStates.get_mutable_value(11).set_value<double>(location_bias);
+                    qp_mutable_AStates.get_mutable_value(12).set_value<bool>(true); // set as modified
+                    qp_mutable_AStates.get_mutable_value(14).set_value<bool>(refresh);
                     kcg.set_state_vector(&KCG_mutable_context, last_kcg_c_states);
+
                     sim_mutable_context.SetTime(last_c_time);
                     LastTimeCase = 0;
+                    break;
                 }
             }
             std::cout << "==incline==" << incline << std::endl;
-
             std::cout << "simulation time:" << sim_context.get_time() << std::endl;
             simulator.Initialize();
             simulator.AdvanceTo(SIMULATION_TIME);
+            if (case1_ticket) {
+                case1_ticket = false;
+                location_bias = 0;
+                auto& tsim_context = simulator.get_context();
+                auto& tkcg_context = diagram->GetSubsystemContext(kcg, tsim_context);
+                auto& tqp_context = diagram->GetSubsystemContext(*qpcontroller, tsim_context);
+                auto tkcg_c_states = tkcg_context.get_continuous_state().CopyToVector();
+                auto tqp_d_states = tqp_context.get_discrete_state().get_vector().CopyToVector();
+                auto& tqp_a_states = tqp_context.get_abstract_state();
+
+                // current states becomes last states
+                last_kcg_c_states = tkcg_c_states; // current kcg continue state  assign to last continue state
+                last_qp_d_states = tqp_d_states; // current qp discrete state assign to last discrete state
+                last_AStates.SetFrom(tqp_a_states);// 0 extract that reset the period_state; 12extract that set as modified
+
+                last_c_time = tsim_context.get_time();
+                LastTimeCase = 2;
+                bias_higher_bound = BOUND;
+                bias_lower_bound = -BOUND;
+            }
         }
 
         Eigen::MatrixXd data1 = logger1->data();
