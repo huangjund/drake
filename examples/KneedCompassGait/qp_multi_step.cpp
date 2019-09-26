@@ -28,6 +28,7 @@
 #define TIME_RATE 0.5
 #define SIMULATION_TIME 6
 #define BOUND 0.14
+#define LATERALBOUND 0.05
 
 namespace drake {
 namespace examples {
@@ -123,8 +124,8 @@ namespace qpControl {
         abstract_vector.push_back(last_qp_a_states.get_value(12).Clone()); // modified_
         abstract_vector.push_back(last_qp_a_states.get_value(13).Clone()); // incline_
         abstract_vector.push_back(last_qp_a_states.get_value(14).Clone()); // refreshed_
-        abstract_vector.push_back(last_qp_a_states.get_value(15).Clone()); // incline_
-        abstract_vector.push_back(last_qp_a_states.get_value(16).Clone()); // refreshed_
+        abstract_vector.push_back(last_qp_a_states.get_value(15).Clone()); // lateral_incline_
+        abstract_vector.push_back(last_qp_a_states.get_value(16).Clone()); // lateral_bias_
 
         systems::AbstractValues last_AStates(std::move(abstract_vector));
 
@@ -133,6 +134,9 @@ namespace qpControl {
         double bias_lower_bound = -BOUND;
         double bias_higher_bound = BOUND;
         double location_bias = 0;
+        double lateral_bias_lower_bound = -LATERALBOUND;
+        double lateral_bias_higher_bound = LATERALBOUND;
+        double lateral_location_bias = 0;
         bool case1_ticket = false;
 
         simulator.Initialize();
@@ -149,6 +153,7 @@ namespace qpControl {
             auto& qp_a_states = qp_context.get_abstract_state();
             c_time = sim_context.get_time(); // get the time
             int incline = qp_a_states.get_value(13).get_value<int>();
+            int lateral_incline = qp_a_states.get_value(15).get_value<int>();
             int period_state = qp_a_states.get_value(0).get_value<int>();
             bool refresh = false;
 
@@ -205,14 +210,37 @@ namespace qpControl {
                     std::cout << "case0" << std::endl;
                     // to judge the searching location bias
                     if (LastTimeCase == 1){
+                        // about lateral incline
+                        if (lateral_incline == -1) {
+                            lateral_bias_higher_bound = 0;
+                            lateral_location_bias = (lateral_bias_higher_bound+lateral_bias_lower_bound)/2;
+                        } else if (lateral_incline == 1) {
+                            lateral_bias_lower_bound = 0;
+                            lateral_location_bias = (lateral_bias_higher_bound+lateral_bias_lower_bound)/2;
+                        } else if (lateral_incline == 0) {
+                            lateral_location_bias = (lateral_bias_higher_bound+lateral_bias_lower_bound)/2;
+                        }
+                        // about saggital incline
                         if (incline == -1) {
                             bias_higher_bound = 0;
                             location_bias = (bias_lower_bound+bias_higher_bound)/2;
                         } else if (incline == 1) {
                             bias_lower_bound = 0;
                             location_bias = (bias_higher_bound+bias_lower_bound)/2;
+                        } else if (incline == 0) {
+                            location_bias = (bias_higher_bound+bias_lower_bound)/2;
                         }
                     } else if (LastTimeCase == 0) {
+                        // about leteral incline
+                        if (lateral_incline == -1) {
+                            lateral_bias_higher_bound = lateral_location_bias;
+                            lateral_location_bias = (lateral_bias_higher_bound+lateral_bias_lower_bound)/2;
+                        } else if (lateral_incline == 1) {
+                            lateral_bias_lower_bound = lateral_location_bias;
+                            lateral_location_bias = (lateral_bias_higher_bound+lateral_bias_lower_bound)/2;
+                        }
+
+                        // about saggital incline
                         if (incline == -1) {
                             bias_higher_bound = location_bias;
                             location_bias = (bias_higher_bound+bias_lower_bound)/2;
@@ -221,7 +249,7 @@ namespace qpControl {
                             location_bias = (bias_higher_bound+bias_lower_bound)/2;
                         }
                     }
-                    std::cout << "+++++++++++" << location_bias << "++++++++++++++++" << std::endl;
+                    std::cout << "++++" << location_bias << "++" << lateral_location_bias << std::endl;
                     if (bias_higher_bound == bias_lower_bound){
                         std::cout << "state error!" << std::endl; exit(0);
                     }
@@ -232,9 +260,11 @@ namespace qpControl {
 
                     // back to the last period state
                     qp_mutable_AStates.SetFrom(last_AStates); // set the current qp abstract from the last states
-                    qp_mutable_AStates.get_mutable_value(11).set_value<double>(location_bias);
                     qp_mutable_AStates.get_mutable_value(12).set_value<bool>(true); // set as modified
                     qp_mutable_AStates.get_mutable_value(14).set_value<bool>(refresh);
+                    qp_mutable_AStates.get_mutable_value(11).set_value<double>(location_bias);
+                    qp_mutable_AStates.get_mutable_value(16).set_value(lateral_location_bias);
+
                     kcg.set_state_vector(&KCG_mutable_context, last_kcg_c_states);
 
                     sim_mutable_context.SetTime(last_c_time);
@@ -242,7 +272,7 @@ namespace qpControl {
                     break;
                 }
             }
-            std::cout << "==incline==" << incline << std::endl;
+            std::cout << "==incline==" << incline << "\t======= lateral incline =======" << lateral_incline << std::endl;
             std::cout << "simulation time:" << sim_context.get_time() << std::endl;
             simulator.Initialize();
             simulator.AdvanceTo(SIMULATION_TIME);

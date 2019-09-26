@@ -55,7 +55,7 @@
 
 #define KPXDDX 10
 #define KDXDDX 45
-#define KPXDDY 0
+#define KPXDDY 1
 #define KDXDDY 0
 #define KPXDDZ 772 // increase to decrease height vs x
 #define KDXDDZ 50 //50
@@ -78,7 +78,7 @@
 
 #define Kpy_tra 0// the Kp of foot coordinate y
 #define Kdy_tra 0 // the Kd of foot coordinate y
-#define Kpy_loc 0
+#define Kpy_loc 100
 #define Kdy_loc 0
 
 #define Kpxi 6// the Kp of foot coordinate x
@@ -106,7 +106,8 @@
 #define TOP 1.0
 #define BOTTOM 0.5
 
-#define Maxlateralbias 0.001;
+#define Maxlateralbias 0.001
+#define MaxLateralV 0.05
 
 // WALKING FOR 8 STEPS
 //#define NQ 11
@@ -579,8 +580,8 @@ namespace qpControl {
 
             rdis_x = rdis_x - location_bias_;
             ldis_x = ldis_x - location_bias_;
-            rdis_y = rdis_y - lateral_bias_;
-            ldis_y = ldis_y - lateral_bias_;
+            rdis_y = rdis_y + lateral_bias_;
+            ldis_y = ldis_y + lateral_bias_;
 
 //            switch (step_num_) {
 //                case 5:
@@ -1549,6 +1550,7 @@ namespace qpControl {
             static int m = 300, n = 300;
             static bool first = true;
             static bool protection = false; // to make it proceed for one piece
+            static int drift_num = 0;
             if (step_num > 4) {
                 if (first) {
                     std::cout << "1" << std::endl;
@@ -1591,12 +1593,19 @@ namespace qpControl {
                             return 4; // refresh mode
                         }
                         if (com_lateral > Maxlateralbias) {
+                            drift_num += 1;
                             lateral_incline_ = 1;
-                            return 5; // refresh lateral mode
                         } else if (com_lateral < -Maxlateralbias) {
+                            drift_num += 1;
                             lateral_incline_ = -1;
-                            return 5; // refresh lateral mode
+                        } else {
+                            lateral_incline_ = 0; // no need to give bias
                         }
+
+                        if (drift_num == 2) lateral_incline_ = 0;
+//                        if (fabs(vcom_lateral) < MaxLateralV) {
+//                            lateral_incline_ = 0;
+//                        }
                         lowest_velocity = 1; ticket = true;
                     }
                 }
@@ -1626,10 +1635,13 @@ namespace qpControl {
                         incline_ = -1;
                         std::cout << "7" << std::endl;
                         return 0; // refresh mode
-                    } else {
+                    } else if (lateral_incline_ == 0) {
                         protection = true;
                         std::cout << "8" << std::endl;
                         return 1; // preceeding one piece mode
+                    } else { // lateral_incline_ != 0 incline_ == 0
+                        incline_ = 0;
+                        return 0; // refresh mode
                     }
                 }
                 return 3; // predict mode
