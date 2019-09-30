@@ -38,6 +38,7 @@ drake_cc_binary(
 # process, and loaded into drake_visualizer's model database by default.
 INSTALLED_MODEL_PACKAGES = [
     "//examples/KneedCompassGait",
+    "//examples/kuka_iiwa_lidar",
     "//examples/acrobot",
     "//examples/atlas",
     "//examples/contact_model",

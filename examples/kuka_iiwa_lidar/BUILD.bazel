@@ -1,0 +1,63 @@
+# -*- python -*-
+load(
+    "@drake//tools/skylark:drake_cc.bzl",
+    "drake_cc_binary",
+    "drake_cc_library",
+)
+load("//tools/install:install_data.bzl", "install_data")
+
+package(default_visibility = ["//visibility:private"])
+
+# library ==================================================
+drake_cc_library(
+    name = "Terrain",
+    srcs = ["srcs/AddTerrainToWorld.cpp"],
+    hdrs = ["includes/AddTerrainToWorld.h"],
+    data = [
+        "models/Enviornment",
+        "models/Objects",
+        "models/belt.urdf",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//attic/multibody:rigid_body_tree",
+        "//common:find_resource",
+    ],
+)
+
+drake_cc_library(
+    name = "KUKA_Common",
+    srcs = ["srcs/KUKA_Common.cpp"],
+    hdrs = [
+        "includes/KUKA_Common.h",
+    ],
+    data = [
+        "//examples/kuka_iiwa_arm:models",
+        "//manipulation/models/iiwa_description:models",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":Terrain",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/parsers",
+        "//common:find_resource",
+    ],
+)
+
+# binary =================================================
+
+drake_cc_binary(
+    name = "Basic_visulize_simulate",
+    srcs = ["srcs/BasicVisualize.cpp"],
+    deps = [
+        ":KUKA_Common",
+        "//attic/manipulation/util:sim_diagram_builder",
+        "//geometry:scene_graph",
+        "//lcm:drake_lcm",
+        "//multibody/parsing:parser",
+        "//multibody/plant",
+        "//systems/analysis:simulator",
+    ],
+)
+
+install_data()
