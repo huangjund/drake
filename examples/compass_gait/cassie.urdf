@@ -4444,8 +4444,8 @@
           name="joint_base"
           type="fixed">
     <origin
-            xyz="1 -1.7 0.2"
-            rpy="0 0 -1" />
+            xyz="0.5 -1.7 0.2"
+            rpy="0 0 -2" />
     <parent
             link="base_link" />
     <child

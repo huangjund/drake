@@ -49,10 +49,12 @@ int DoMain() {
         drake::parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
                 FindResourceOrThrow(filepath), multibody::joints::kFixed, tree.get());
 
+        auto frame = tree->findFrame("iiwa_frame_ee", 0);
+
+        filepath = "drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf";
         drake::parsers::sdf::AddModelInstancesFromSdfFile(
-                FindResourceOrThrow(
-                        "drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf"),
-                kFixed, nullptr /* weld to frame */, rigid_body_tree.get());
+                FindResourceOrThrow(filepath), multibody::joints::kFixed, frame, tree.get());
+
 
     parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
             FindResourceOrThrow("drake/examples/compass_gait/quadrotor.urdf"),
@@ -301,9 +303,10 @@ int DoMain() {
         Simulator<double> simulator(*sys);
 
         cout << plant->get_num_states() << endl;
-        Eigen::Matrix<double, 14, 1> PointState;
-        PointState << 2.14, -1.5, -1.57, -1.57, 1.57, -1, 0,
-                    0, 0, 0, 0, 0, 0, 0;
+        Eigen::Matrix<double, 18, 1> PointState;
+        PointState << 2.14, -1.5, -1.57, -1.57, 1.57, -0.5, 0, 0.05, -0.05,
+                    0, 0, 0, 0, 0, 0, 0,
+                    0, 0;
 
         plant->set_state_vector(&simulator.get_mutable_context(),
                                 PointState);
