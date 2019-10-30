@@ -43,13 +43,12 @@
 #define STEP_LEN 0.4 // one foot step length
 #define contact_phi 1e-3
 #define W1 1e5
-#define W1y 1e7
+#define W1y 1e4
 #define W2 1e3
 #define W3 0
 #define W4 0
 #define W5 1e8
 #define W6 1e5
-#define W7 1e8
 #define W5i 1e5 // prevent front leg from slipping after touching ground
 #define W6i 1e8
 
@@ -237,11 +236,6 @@ namespace qpControl {
 
             this->DeclarePeriodicDiscreteUpdate(0.0005);
             this->DeclarePeriodicUnrestrictedUpdateEvent(0.0005, 0, &qpController::AbstractUpdate);
-//            NewPeriodicState_ = this->MakeWitnessFunction(
-//                    "trajectory state change",
-//                    systems::WitnessFunctionDirection::kPositiveThenNonPositive,
-//                    &qpController::AutomataSpecific,
-//                    &qpController::AbstractUpdate);
 
             VectorX<double> q_d(NQ);
             q_d.setZero();
@@ -305,13 +299,6 @@ namespace qpControl {
             this->foot_step_ = mat2;
             this->foot_trajectory_ = mat3;
 
-//            for (int k = 0; k < 10000; ++k) {
-//                for (int i = 0; i < 6;  ++i) {
-//                    std::cout << std::fixed << std::setprecision(5) << foot_trajectory_[k][i] << "\t";
-//                }
-//                std::cout << "\n";
-//            }
-
             // add decision variables--------------------------------------------------------------------
             auto vdot = prog.NewContinuousVariables(NV, "joint acceleration"); // qddot var
             auto u = prog.NewContinuousVariables(NU, "input");  // torque var
@@ -319,21 +306,10 @@ namespace qpControl {
             auto eps = prog.NewContinuousVariables(2, "slack variables"); // 2 knee slack variables
             auto yita_st = prog.NewContinuousVariables(3, "stance leg slack"); // 3 stance leg slack variables
             auto yita_sw = prog.NewContinuousVariables(3, "swing leg slack"); // 3 swing leg slack variables
-            auto x_yaw = prog.NewContinuousVariables(1, "yaw");  // robot yaw
-         //   int nparams = prog.num_vars();
-
 
             // Problem Constrains -----------------------------------------------------------------------
             auto con_u_lim = prog.AddBoundingBoxConstraint(umin,umax, u).evaluator();
             auto con_fric_lim = prog.AddBoundingBoxConstraint(5, 1000000, beta).evaluator();
-
-            this->Aeq_slack << 1, 0, -1, 0,
-                                0, 1, 0, -1;
-            Eigen::Matrix<double, 2, 4> Aeq_temp;
-            Eigen::Vector2d beq_slack;
-            beq_slack.setZero();Aeq_temp.setZero();
-            auto con_slack = prog.AddLinearEqualityConstraint(
-                    Aeq_temp, beq_slack, {vdot.segment(8,1), vdot.segment(10,1), eps}).evaluator();
 
             Eigen::Matrix<double, 3, NQ+3> Aeq_stance;
             Eigen::Matrix<double, 3, 1> beq_stance;
@@ -355,23 +331,7 @@ namespace qpControl {
             auto con_dyna = prog.AddLinearEqualityConstraint(
                     idyn_cona, Eigen::VectorXd::Zero(NU), {vdot, u, beta}).evaluator();
 
-            Vector1<double> Aeq_yaw(0);
-            Vector1<double> beq_yaw(0);
-            auto con_yaw = prog.AddLinearEqualityConstraint(Aeq_yaw, beq_yaw, x_yaw).evaluator();
-
-//            Eigen::Matrix2d Aeq_tau;
-//            Aeq_tau.setIdentity();
-//            Eigen::Vector2d beq_tau;
-//            beq_tau.setZero();
-//            auto con_tau = prog.AddLinearEqualityConstraint(Aeq_tau, beq_tau, {u.segment(0,1), u.segment(3,1)});
             // Problem Cost -----------------------------------------------------------------------------
-            Eigen::Matrix<double, 5, 5> Q_lateral;
-            Eigen::Matrix<double, 5, 1> b_lateral;
-            Q_lateral.setIdentity();b_lateral.setZero();
-            Q_lateral *= W7;
-            auto cost_lateral = prog.AddQuadraticCost(Q_lateral, b_lateral, {vdot.segment(1,1), vdot.segment(3,1),
-                                                                             vdot.segment(5,1), vdot.segment(6,1),vdot.segment(9,1)});
-
             // set the Kp and Kd for COM xddot
             this->Kp_xdd_.setOnes();
             this->Kd_xdd_.setOnes();
@@ -395,13 +355,6 @@ namespace qpControl {
             Eigen::Matrix<double, NU, 1> b_t;
             Q_t.setIdentity();b_t.setZero();
             auto cost_t = prog.AddQuadraticCost(Q_t, b_t, u).evaluator();
-
-            // the third term
-            this->weight_yaw_.setIdentity();
-            this->weight_yaw_ *= W3;
-            Eigen::Matrix<double, 1, 1> Q_yaw(1);
-            Vector1<double> b_yaw(0);
-            auto cost_yaw = prog.AddQuadraticCost(Q_yaw, b_yaw, x_yaw).evaluator();
 
             // the forth term
             this->weight_slack_.setIdentity();
@@ -430,16 +383,13 @@ namespace qpControl {
 
             // save variables ----------------------------------------------------------------------------
             this->q_des_ = q_d;
-            this->con_slack_ = con_slack;
             this->con_slack2_ = con_slack2;
             this->con_slack3_ = con_slack3;
             this->con_dynf_ = con_dynf;
             this->con_dyna_ = con_dyna;
-            this->con_yaw_ = con_yaw;
             this->con_fric_lim_ = con_fric_lim;
             this->cost_xddot_ = cost_xddot;
             this->cost_t_ = cost_t;
-            this->cost_yaw_ = cost_yaw;
             this->cost_slack_ = cost_slack;
             this->cost_slack2_ = cost_slack2;
             this->cost_slack3_ = cost_slack3;
@@ -453,8 +403,6 @@ namespace qpControl {
             using std::endl;
             t = context.get_time();
 
-            cout << "Docacl" << endl;
-
             cout << "stance Now:" << stance_now_   <<
                  "\tsim_tim:" << sim_time << "\tt" << t << "\tstep_num:" <<
                  step_num_   << "\tperiod_state:" << period_state_ <<
@@ -467,10 +415,6 @@ namespace qpControl {
             static int m=m_;
             static int count_num = count_num_;
             static bool count_num_change = count_num_change_;
-            static int lock = 0;
-            static Eigen::Matrix<double, 3, 1> vcom_offset(-0.95,0,0.095);
-            static Eigen::Matrix<double, 3, 1> initdes_vcom(-0.998557, 0, 0.099856);
-            static Eigen::Matrix<double, 3, 1> last_foot_point(0, 0, 0);
             static int step_num = step_num_;
             if (semophore_) {
                 m = m_;
@@ -479,7 +423,7 @@ namespace qpControl {
             }
 
           // get the current state and current disired trajectory
-            VectorX<double> xcom_des(COM), foot_traj_des(COM), x_yaw_des(1); // qd_des(NV),
+            VectorX<double> xcom_des(COM), foot_traj_des(COM);
             VectorX<double> q(NQ), qd(NV);
             VectorX<double> this_stance(3),next_stance(3);
             for (int i = 0; i < NQ; ++i) {
@@ -488,7 +432,6 @@ namespace qpControl {
             }
 
             this->left_is_stance = foot_step_[m][6];
-            x_yaw_des[1] = 0;
 
             static bool replanning = replanning_;
             static bool isNew = isNew_;
@@ -498,14 +441,11 @@ namespace qpControl {
                 semophore_ = false;
             }
             static int impulse_push = IMPULSE_TIME;
-//            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
-//                 << "\tcount_num_change:" << count_num_change << "\tleft is stance :" << left_is_stance << endl;
 
             stance_now = foot_step_[m][0]; //-foot_step_error;
             if (replanning) {
                 while(!isNew) {// firstly skip to the switching point
                     this_stance[0] = foot_step_[m][0]; //-foot_step_error;
-//                    cout << "stance_now:" << stance_now << "this_stance: " << this_stance[0] << endl;
                     if (stance_now == this_stance[0])
                         isNew = false;
                     else{
@@ -518,7 +458,6 @@ namespace qpControl {
             }
             replanning = false;
 
-//            cout << "============================================" << m << "============================="<< endl;
             for (int l = 0; l < COM; ++l) {
                 if (l < COM){
                     xcom_des[l] = trajectory_[m][l];
@@ -530,7 +469,6 @@ namespace qpControl {
                 }
             }
             this->left_is_stance = foot_step_[m++][6];
-
 
             // create the current kinematic cache
             auto kinsol = (this->rtree_)->doKinematics(q, qd);
@@ -580,49 +518,8 @@ namespace qpControl {
 
             rdis_x = rdis_x - location_bias_;
             ldis_x = ldis_x - location_bias_;
-            rdis_y = rdis_y + lateral_bias_;
-            ldis_y = ldis_y + lateral_bias_;
-
-//            switch (step_num_) {
-//                case 5:
-//                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.005; // - 0.001;
-//                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.005; // - 0.001;
-//                    break;
-//                case 9:
-//                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.03; // - 0.001;
-//                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.03; // - 0.001;
-//                    break;
-//            }
-
-//            switch (step_num_) {
-//                case 5:
-//                    rdis_x = next_stance[0] - right_toe_pos[0]; // - 0.001;
-//                    ldis_x = next_stance[0] - left_toe_pos[0]; // - 0.001;
-//                    break;
-//                case 6:
-//                    rdis_x = next_stance[0] - right_toe_pos[0]-0.03;
-//                    ldis_x = next_stance[0] - left_toe_pos[0]-0.03;
-//                    break;
-//                case 7:
-//                    rdis_x = next_stance[0] - right_toe_pos[0] - 0.07;
-//                    ldis_x = next_stance[0] - left_toe_pos[0] - 0.07;
-//                    break;
-//                case 8:
-//                    rdis_x = next_stance[0] - right_toe_pos[0] + 0.05; //-0.1;
-//                    ldis_x = next_stance[0] - left_toe_pos[0] + 0.05; //-0.1;
-//                    break;
-//                case 9:
-//                    rdis_x = next_stance[0] - right_toe_pos[0] + 0.05; //-0.1;
-//                    ldis_x = next_stance[0] - left_toe_pos[0] + 0.05; //-0.1;
-//                    break;
-//                default:
-//                    break;
-//            }
-
-//            if (step_num == 8) {
-//                rdis_x = next_stance[0] - right_toe_pos[0]+ADJUST;
-//                ldis_x = next_stance[0] - left_toe_pos[0]+ADJUST;
-//            }
+            rdis_y = rdis_y + lateral_bias_ - 0.1;
+            ldis_y = ldis_y + lateral_bias_ - 0.1;
 
             // Problem Constraints ----------------------------------------------------------------------
             Eigen::Matrix<double, NF, 1> l_contact;
@@ -644,18 +541,6 @@ namespace qpControl {
             Eigen::Vector2d beq_slack;
             beq_slack.setZero();
 
-            if (lock == 0) { // when left is the stance leg, lock the left leg
-                this->Aeq_slack(1,1) = 0;
-                this->Aeq_slack(0,0) = 1;
-            } else if (lock == 1) { // when right is the stance leg, lock the right leg
-                this->Aeq_slack(0,0) = 0;
-                this->Aeq_slack(1,1) = 1;
-            } else if (lock == 2) { // when is in due contact phase, don't lock any leg
-                this->Aeq_slack(0,0) = 0;
-                this->Aeq_slack(1,1) = 1;
-            }
-            this->con_slack_->UpdateCoefficients(this->Aeq_slack, beq_slack);
-
             Eigen::Matrix<double, NQ-NU, NQ+NF> dyn_conf;
             dyn_conf.setZero();
             dyn_conf << Hf, -JBf;
@@ -665,10 +550,6 @@ namespace qpControl {
             dyn_cona.setZero();
             dyn_cona << Ha, -Ba, -JBa;
             this->con_dyna_->UpdateCoefficients(dyn_cona, -Ca);
-
-            Vector1<double> Aeq_yaw(1);
-            Vector1<double> beq_yaw(q[5]);
-            this->con_yaw_->UpdateCoefficients(Aeq_yaw, beq_yaw);
 
             // Problem Costs ---------------------------------------------------------------------------
             Eigen::Matrix<double, COM/2, 1> kp = this->Kp_xdd_;
@@ -691,18 +572,7 @@ namespace qpControl {
             if (count == 2){ Q_t *= 0; b_t *= 0;}
             this->cost_t_->UpdateCoefficients(Q_t, b_t);
 
-            auto Q_yaw = 2*this->weight_yaw_;
-            auto b_yaw = -2*this->weight_yaw_*x_yaw_des;
-            this->cost_yaw_->UpdateCoefficients(Q_yaw, b_yaw);
-
             Eigen::Matrix<double, 2, 2> Q_slack = 2*this->weight_slack_;
-//            if (q[8] > varipsion && q[10] < varipsion) {
-//                Q_slack(1,1) = 0;
-//            } else if (q[8] < varipsion && q[10] > varipsion) {
-//                Q_slack(0,0) = 0;
-//            } else if (q[8] < varipsion && q[10] < varipsion) {
-//                Q_slack *= 0;
-//            }
             Vector2<double> b_slack(0,0);
             this->cost_slack_->UpdateCoefficients(Q_slack, b_slack);
 
@@ -768,11 +638,7 @@ namespace qpControl {
 
             if (isNew){
                 if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
-                    lock = 0;
                     count_num = count;
-                    initdes_vcom(0,0) = trajectory_[m][3];
-                    initdes_vcom(1,0) = trajectory_[m][4];
-                    initdes_vcom(2,0) = trajectory_[m][5];
                     // stance leg constraint
                     std::cout << "=======left is stance===1=====" << std::endl;
                     JStance << left_toe_jaco;
@@ -820,11 +686,7 @@ namespace qpControl {
                     this->cost_slack3_->UpdateCoefficients(Q_slack3, b_slack3);
 
                 } else {    // if the trajectory is new and right is the stance leg then to swing phase
-                    lock = 1;
                     count_num = count;
-                    initdes_vcom(0,0) = xcom_des[3];
-                    initdes_vcom(1,0) = xcom_des[4];
-                    initdes_vcom(2,0) = xcom_des[5];
                     // stance leg constraint
                     cout << "======right is stance===2=====" << endl;
                     JStance << right_toe_jaco;
@@ -879,9 +741,6 @@ namespace qpControl {
                         if (left_is_stance && count==1) {
                             // stance leg constraint
                             replanning = true;
-                            vcom_offset(0,0) = vcom[0];
-                            vcom_offset(1,0) = vcom[1];
-                            vcom_offset(2,0) = vcom[2];
 //                            foot_step_error += next_stance[0] - right_toe_pos[0];
                             std::cout << "=======left is stance====3====" << std::endl;
                             JStance << left_toe_jaco;
@@ -977,9 +836,6 @@ namespace qpControl {
                         } else if (!left_is_stance && count==1) {
                             // stance leg constraint
                             replanning = true;
-                            vcom_offset(0,0) = vcom[0];
-                            vcom_offset(1,0) = vcom[1];
-                            vcom_offset(2,0) = vcom[2];
 //                            foot_step_error += next_stance[0] - left_toe_pos[0];
                             cout << "======right is stance===5=====" << endl;
                             JStance << right_toe_jaco;
@@ -1075,7 +931,6 @@ namespace qpControl {
                     } else {
                         if (left_is_stance) {  // if left is the stance leg, then swing
                             // stance leg constraint
-                            lock = 0;
                             std::cout << "=======left is stance===7=====" << std::endl;
                             JStance << left_toe_jaco;
                             JdotqdotStance << left_toe_jacodotv;
@@ -1135,7 +990,6 @@ namespace qpControl {
 
                         } else {    // if right is the stance leg, then swing
                             // stance leg constraint
-                            lock = 1;
                             cout << "======right is stance====8====" << endl;
                             JStance << right_toe_jaco;
                             JdotqdotStance << right_toe_jacodotv;
@@ -1257,7 +1111,6 @@ namespace qpControl {
                         impulse_push = IMPULSE_TIME;
                     } else if (left_is_stance && count==2) { // left stance impact phase
                         // stance leg constraint
-                        lock = 1;
                         cout << "======left is stance==impact pahse====10==" << endl;
                         JStance << right_toe_jaco;
                         JdotqdotStance << right_toe_jacodotv;
@@ -1348,7 +1201,6 @@ namespace qpControl {
                         impulse_push = IMPULSE_TIME;
                     } else { // right stance impact phase
                         cout << "left is stance :" << left_is_stance << "\tcount:" << count << endl;
-                        lock = 0;
                         // stance leg constraint
                         std::cout << "=======right is stance==impact phase==12====" << std::endl;
                         JStance << left_toe_jaco;
@@ -1385,77 +1237,11 @@ namespace qpControl {
                 }
             }
 
-
             // solve the problem --------------------------------------------------------------------------
             drake::solvers::MathematicalProgramResult result = drake::solvers::Solve(this->prog);
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
 
-//            cout << "<<<<<<<<<<<<<<<<<lock:" << lock << ">>>>>>>>>>>>>>>>>>>>" << endl;
-//            cout << "stance Now:" << stance_now << "\tisNew:" << isNew << "\tcount_number:" << count_num
-//                 << "\tcount_num_change:" << count_num_change << "\t left_is_stance:" << left_is_stance <<
-//                 "\tthis_stance" << this_stance[0] << "\tnext_stance" << next_stance[0] << endl;
-//            std::cout << "|=======com_des========\t" << "|========COM======\t"
-//                      << "|======COM velocity====\t" << "|=====COMdot_des==\t"
-//                      << "|==right toe pos=======\t" << "|==right toe velocity=\t"
-//                      << "|==left toe pos========\t" << "|===left toe velocity=\t"
-//                      << std::endl;
-//            for (int k = 0; k < 3; ++k) {
-//                std::cout << "|"<<std::fixed<<std::setprecision(8) << xcom_des.segment(0,3)[k] << "\t\t";
-//                std::cout << "|"<<std::fixed<<std::setprecision(8)<< com[k] << "\t\t";
-//                std::cout << "|"<<std::fixed<<std::setprecision(8)<< vcom[k] << "\t\t";
-//                cout << "|" << std::fixed<<std::setprecision(8) << xcom_des.segment(3,3)[k] << "\t\t";
-//                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_pos[k] << "\t\t";
-//                cout << "|" << std::fixed<<std::setprecision(8) << right_toe_Jqdot[k] << "\t\t";
-//                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_pos[k] << "\t\t";
-//                cout << "|" << std::fixed<<std::setprecision(8) << left_toe_Jqdot[k] << "\t\t";
-//                std::cout << "\n";
-//            }
-//
-//            // print all dicision variables out ------------------------------------------------------------
-//            std::cout <<"|==========q=======\t"<<"|========v=========\t" <<
-//            "|=========vdot=========\t" << "|==========u==========\t"
-//            << "|=========beta=========\t" <<  "|==yita=stance swing==\t"
-//            << "|======foot des tra====\t" << "|=====eps========\t" <<  std::endl;
-//            for (int k = 0; k < NQ; ++k) {
-//                cout << "|" << std::fixed<<std::setprecision(8) << q[k] << "\t\t";
-//                cout << "|" << std::fixed<<std::setprecision(8) << qd[k] << "\t\t";
-//                std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
-//                if (k<NU) // u
-//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
-//                else
-//                    std::cout <<"|"<< "\t\t\t";
-//                if (k<NF) // beta
-//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
-//                else
-//                    std::cout <<"|"<< "\t\t\t";
-//                if (k<6){ // yita_stance then swing
-//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,6)[k] << "\t\t";
-//                }
-//                else
-//                    std::cout <<"|"<< "\t\t\t";
-//                if (k<2) //eps
-//                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
-//                else
-//                    std::cout << "|" << "\t\t\t";
-////                if (k<3) // yita_stance
-////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,3)[k] << "\t\t";
-////                else
-////                    std::cout <<"|"<< "\t\t\t";
-////                if (k<6) // desried foot trajectory
-////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< foot_traj_des[k] << "\t\t";
-////                else
-////                    std::cout <<"|"<< "\t\t\t";
-////                if (k<3)
-////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< Xddot[k] << "\t\t";
-////                else
-////                    cout << "|" << "\t\t\t";
-////                if (k<2) // discrete state
-////                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF,2)[k] << "\t\t";
-////                else
-////                    std::cout << "|" << "\t\t\t";
-//                std::cout << "\n";
-//            }
             Eigen::Matrix<double, 3, 1> bias_mass(0,0,0);
             auto left_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, 8, 0);
             auto left_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, 6, 0);
@@ -1551,7 +1337,7 @@ namespace qpControl {
             static bool first = true;
             static bool protection = false; // to make it proceed for one piece
             static int drift_num = 0;
-            if (step_num > 4) {
+            if (step_num > 10) {
                 if (first) {
                     std::cout << "1" << std::endl;
                     first = false;
@@ -1808,7 +1594,6 @@ namespace qpControl {
         Eigen::Matrix<double, 3, 3> weight_slack3_;
         mutable Eigen::Matrix<double, 2, 4> Aeq_slack;
         mutable Eigen::Matrix<double, 37, 1> COM_FOOT;
-//        std::unique_ptr<systems::Context<double>> self_context;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dynf_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_dyna_;
         std::shared_ptr<solvers::LinearEqualityConstraint> con_slack_;

@@ -26,7 +26,7 @@
 #include "drake/systems/primitives/signal_logger.h"
 
 #define TIME_RATE 0.5
-#define SIMULATION_TIME 6
+#define SIMULATION_TIME 1
 #define BOUND 0.14
 #define LATERALBOUND 0.05
 

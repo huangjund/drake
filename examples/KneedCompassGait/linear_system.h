@@ -19,6 +19,7 @@
 #define ACC 6
 #define ApexHeight 0.08
 #define HighVel 1.975
+#define LateralBias 0.1
 
 namespace linear_system {
     class LinearSystem : public drake::systems::LeafSystem<double> {
@@ -66,7 +67,7 @@ namespace linear_system {
             zero << 0, 0, 0, 0, 0, 0, 0, 0, 0;
             identity << 1, 0, 0, 0, 1, 0, 0, 0, 1;
             X(5, 0) = X(3, 0) * 0.15;
-            CalculateAB(0.15, 0.15);
+            CalculateAB(0.15, 0);
         }
 
         void SetInput(Eigen::Matrix<double, Eigen::Dynamic, 1> _U) {
@@ -103,9 +104,6 @@ namespace linear_system {
                 x_slopes = {-0.15, 0.15};
             else {
                 x_slopes = {0, action_list[step].dheight / (x2_foot - (x1 + x2) / 2)};
-                //      std::cout << "chnage in x" << (x2_foot - (x1 + x2) / 2)
-                //                << "change in height" << action_list[step].dheight <<
-                //                std::endl;
             }
             // need to tune this
             //    std::cout << "the swith x is" << (x1 + x2) / 2 << "  x1_dot" << x1_dot
@@ -139,10 +137,8 @@ namespace linear_system {
         void DoCalcTimeDerivatives(
                 const drake::systems::Context<double>& context,
                 drake::systems::ContinuousState<double>* derivatives) const override {
-            std::cout << "DoCalcTimeDerivatives" << std::endl;
             t = context.get_time();
             while (time < t - h) {
-                std::cout << "compute value" << std::endl;
                 xdot = A * X + B * U;
                 X = X + xdot * h;
                 if (X(0, 0) > switch_x && surf % 2 == 1) {
@@ -158,12 +154,13 @@ namespace linear_system {
                     foot(5, 0) = 0;
 //                    std::cout << "height************************" << time << std::endl;
                     U(0, 0) = U(0, 0) + action_list[step].step_length;
+                    U(1, 0) = -U(1, 0);
                     U(2, 0) = U(2, 0) + action_list[step].dheight;
                     CalculateAB(x_slopes[surf], 0.2);
                     X(3, 0) =
                             X(3, 0) + 2 * (switch_x - X(0, 0)) / (xdot(0, 0)) * xdot(0, 0);
                     X(5, 0) = x_slopes[surf] * X(3, 0) + 0.2 * X(4, 0);
-                    // std::cout << "switch:......." << std::endl;
+                     std::cout << "switch:......." << std::endl;
                     // std::cout << X(0, 0) << "\t" << X(1, 0) << "\t" << X(2, 0) << "\t"
                     //          << X(3, 0) << "\t" << X(4, 0) << "\t" << xdot(5, 0)
                     //          << std::endl;
@@ -179,7 +176,7 @@ namespace linear_system {
                     CalculateAB(x_slopes[surf], -0.2);
                     X(2, 0) = U(2, 0) + action_list[step].z_apex;
                     X(5, 0) = x_slopes[surf] * X(3, 0) - 0.2 * X(4, 0);
-//                    std::cout << "top:........" << std::endl;
+                    std::cout << "top:........" << std::endl;
 //                    std::cout << X(0, 0) << "\t" << X(1, 0) << "\t" << X(2, 0) << "\t"
 //                              << X(3, 0) << "\t" << X(4, 0) << "\t" << xdot(5, 0)
 //                              << std::endl;
@@ -196,7 +193,7 @@ namespace linear_system {
 //                std::cout<<tau<<"   " <<ttot<<std::endl;
                 double acc;
                 if (foot(0, 0) <= U(0,0)-(action_list[step].step_length-x_val)) {
-                    acc =ACC;
+                    acc = ACC;
                 } else{
                     acc = -4.106;
                 }
@@ -229,13 +226,13 @@ namespace linear_system {
                     foot(5, 0) = 0;
                 }
 
-//                for (int i = 0; i < 6; ++i) {
-//                    if (i == 0 || i == 3)
-//                        std::cout << std::fixed << std::setprecision(6) << -X[i] << " ";
-//                    else
-//                        std::cout << std::fixed << std::setprecision(6) << X[i] << " ";
-//                }
-//                std::cout << "\n";
+                for (int i = 0; i < 6; ++i) {
+                    if (i == 0 || i == 3)
+                        std::cout << std::fixed << std::setprecision(6) << -X[i] << " ";
+                    else
+                        std::cout << std::fixed << std::setprecision(6) << X[i] << " ";
+                }
+                std::cout << "\n";
 
 //                        auto d_state =
 //                        context.get_discrete_state().get_vector().CopyToVector(); for
@@ -288,7 +285,6 @@ namespace linear_system {
         drake::systems::EventStatus Update(
                 const drake::systems::Context<double>& context,
                 drake::systems::State<double>* state) const {
-            std::cout << "Update Event" << std::endl;
             t = context.get_time();
             drake::systems::ContinuousState<double>& c_state =
                     state->get_mutable_continuous_state();
@@ -328,6 +324,7 @@ namespace linear_system {
             drake::systems::ContinuousState<double>& state =
                     simulator.get_mutable_context().get_mutable_continuous_state();
             U(0, 0) = 1.2;
+            U(1, 0) = LateralBias;
 
             Eigen::Matrix<double, 6, 1> X0;
             X0 << 1, 0, 0.65, 0.83, 0, 0.125;
@@ -350,7 +347,7 @@ namespace linear_system {
             }
             system.SetInitState(X0, state, action_list);
             system.SetInput(U);
-            simulator.AdvanceTo(12);
+            simulator.AdvanceTo(10);
         }
     };
 }  // namespace linear_system
