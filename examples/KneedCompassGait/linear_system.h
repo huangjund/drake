@@ -67,7 +67,7 @@ namespace linear_system {
             zero << 0, 0, 0, 0, 0, 0, 0, 0, 0;
             identity << 1, 0, 0, 0, 1, 0, 0, 0, 1;
             X(5, 0) = X(3, 0) * 0.15;
-            CalculateAB(0.15, 0);
+            CalculateAB(0.15, 0.15);
         }
 
         void SetInput(Eigen::Matrix<double, Eigen::Dynamic, 1> _U) {
@@ -160,7 +160,7 @@ namespace linear_system {
                     X(3, 0) =
                             X(3, 0) + 2 * (switch_x - X(0, 0)) / (xdot(0, 0)) * xdot(0, 0);
                     X(5, 0) = x_slopes[surf] * X(3, 0) + 0.2 * X(4, 0);
-                     std::cout << "switch:......." << std::endl;
+                    // std::cout << "switch:......." << std::endl;
                     // std::cout << X(0, 0) << "\t" << X(1, 0) << "\t" << X(2, 0) << "\t"
                     //          << X(3, 0) << "\t" << X(4, 0) << "\t" << xdot(5, 0)
                     //          << std::endl;
@@ -176,7 +176,7 @@ namespace linear_system {
                     CalculateAB(x_slopes[surf], -0.2);
                     X(2, 0) = U(2, 0) + action_list[step].z_apex;
                     X(5, 0) = x_slopes[surf] * X(3, 0) - 0.2 * X(4, 0);
-                    std::cout << "top:........" << std::endl;
+                   // std::cout << "top:........" << std::endl;
 //                    std::cout << X(0, 0) << "\t" << X(1, 0) << "\t" << X(2, 0) << "\t"
 //                              << X(3, 0) << "\t" << X(4, 0) << "\t" << xdot(5, 0)
 //                              << std::endl;
@@ -226,12 +226,17 @@ namespace linear_system {
                     foot(5, 0) = 0;
                 }
 
+                double w = M_PI/action_list[step].step_length;
+                double a = LateralBias/2.0;
+                double y = a*std::sin(w*(X[0]-1)), ydot = a*w*std::cos(w*(X[0]-1))*X[3];
+                X(1,0) = y; X(4,0) = ydot;
                 for (int i = 0; i < 6; ++i) {
                     if (i == 0 || i == 3)
                         std::cout << std::fixed << std::setprecision(6) << -X[i] << " ";
                     else
                         std::cout << std::fixed << std::setprecision(6) << X[i] << " ";
                 }
+                X(1,0) = 0; X(4,0) = 0;
                 std::cout << "\n";
 
 //                        auto d_state =
@@ -324,7 +329,6 @@ namespace linear_system {
             drake::systems::ContinuousState<double>& state =
                     simulator.get_mutable_context().get_mutable_continuous_state();
             U(0, 0) = 1.2;
-            U(1, 0) = LateralBias;
 
             Eigen::Matrix<double, 6, 1> X0;
             X0 << 1, 0, 0.65, 0.83, 0, 0.125;
@@ -333,6 +337,7 @@ namespace linear_system {
                                                 0.4, 0.4, 0.4, 0.4, 0.4, 0.4};
             std::vector<double> key_xdot = {0.35, 0.35, 0.35, 0.35, 0.35,
                                             0.35, 0.35, 0.35, 0.35, 0.35,
+                                            0.35, 0.35, 0.35, 0.35, 0.35,
                                             0.35, 0.35, 0.35, 0.35, 0.35};
             std::vector<double> change_in_yaw = {0, 0, 0, 0, -0, -0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
             std::vector<double> change_in_height = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -340,14 +345,14 @@ namespace linear_system {
                                            0.68, 0.68, 0.68, 0.68, 0.68, 0.68,
                                            0.68, 0.68, 0.68, 0.68, 0.68, 0.68};
             std::vector<Action> action_list;
-            for (int i = 0; i < 12; i++) {
+            for (int i = 0; i < 18; i++) {
                 Action acn(change_in_yaw[i], change_in_height[i], step_lengths[i],
                            key_xdot[i], key_zap[i]);
                 action_list.push_back(acn);
             }
             system.SetInitState(X0, state, action_list);
             system.SetInput(U);
-            simulator.AdvanceTo(10);
+            simulator.AdvanceTo(12);
         }
     };
 }  // namespace linear_system

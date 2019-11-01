@@ -26,7 +26,7 @@
 #include "drake/systems/primitives/signal_logger.h"
 #include "drake/examples/KneedCompassGait/system.h"
 
-#define TIME_RATE 0.1
+#define TIME_RATE 0.01
 #define SIMULATION_TIME 1.5
 
 namespace drake {

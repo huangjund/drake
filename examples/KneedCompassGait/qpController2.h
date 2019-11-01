@@ -37,13 +37,11 @@
 #define mu 1.0
 #define COM 6 // state of COM
 #define ALPHA 0
-#define gama -1
 #define ZH 0.08 // the desired z height of foot toe
-#define COMZH 0.7 // the heighest point of com z trajectory
 #define STEP_LEN 0.4 // one foot step length
 #define contact_phi 1e-3
 #define W1 1e5
-#define W1y 1e4
+#define W1y 1e5
 #define W2 1e3
 #define W3 0
 #define W4 0
@@ -55,10 +53,9 @@
 #define KPXDDX 10
 #define KDXDDX 45
 #define KPXDDY 1
-#define KDXDDY 0
+#define KDXDDY 1
 #define KPXDDZ 772 // increase to decrease height vs x
 #define KDXDDZ 50 //50
-#define KDZWEIGHT 10 // the weight of the differential parameter
 
 #define Kpx_tra 12 // the Kp of foot coordinate x 1.9
 #define Kdx_tra 4 // the Kd of foot coordinate x 0.5
@@ -71,9 +68,6 @@
 #define KdzUP_loc 0
 #define KpzDOWN_loc 100
 #define KdzDOWN_loc 0
-#define KpzDOWN_loc_H 100
-#define FastDownHeight 0.03
-#define ADJUST 0.1
 
 #define Kpy_tra 0// the Kp of foot coordinate y
 #define Kdy_tra 0 // the Kd of foot coordinate y
@@ -106,86 +100,6 @@
 #define BOTTOM 0.5
 
 #define Maxlateralbias 0.001
-#define MaxLateralV 0.05
-
-// WALKING FOR 8 STEPS
-//#define NQ 11
-//#define NV 11
-//#define NU 5
-//#define DIM 3
-//#define ND 4 // friction cone approx
-//#define NC 2 // 2 on the left 2 on the right
-//#define NF 8 // number of contact force variables
-//#define m_surface_tangents 4
-//#define mu 1.0
-//#define COM 6 // state of COM
-//#define ALPHA 0
-//#define gama -1
-//#define ZH 0.05 // the desired z height of foot toe
-//#define COMZH 0.7 // the heighest point of com z trajectory
-//#define STEP_LEN 0.4 // one foot step length
-//#define contact_phi 1e-3
-//#define W1 1e5
-//#define W1y 1e7
-//#define W2 1e3
-//#define W3 0
-//#define W4 0
-//#define W5 1e8
-//#define W6 1e5
-//#define W5i 1e5 // prevent front leg from slipping after touching ground
-//#define W6i 1e8
-//
-//#define KPXDDX 1
-//#define KDXDDX 5
-//#define KPXDDY 0
-//#define KDXDDY 0
-//#define KPXDDZ 400 // increase to decrease height vs x
-//#define KDXDDZ 30 //50
-//#define KDZWEIGHT 10 // the weight of the differential parameter
-//
-//#define Kpx_tra 200 // the Kp of foot coordinate x 1.9
-//#define Kdx_tra 20 // the Kd of foot coordinate x 0.5
-//#define Kpz_tra 200
-//#define Kdz_tra 20
-//
-//#define Kpx_loc 5
-//#define Kdx_loc 0
-//#define KpzUP_loc 0
-//#define KdzUP_loc 0
-//#define location_Kpzdown 10
-//#define KdzDOWN_loc 0
-//
-//#define Kpy_tra 1000// the Kp of foot coordinate y
-//#define Kdy_tra 100 // the Kd of foot coordinate y
-//#define Kpy_loc 10000
-//#define Kdy_loc 1000
-//
-//#define Kpxi 6// the Kp of foot coordinate x
-//#define Kdxi 0 // the Kd of foot coordinate x
-//#define Kpyi 1 // the Kp of foot coordinate y
-//#define Kdyi 0 // the Kd of foot coordinate y
-//#define Impact_KpzUP 3000// the Kp of foot coordinate z, consistent
-//#define KdzUPi 0// the Kd of foot coordinate z
-//
-//// trick ground impulse parameters
-//#define Kpxip 0// the Kp of foot coordinate x
-//#define Kdxip 0 // the Kd of foot coordinate x
-//#define Kpyip 1 // the Kp of foot coordinate y
-//#define Kdyip 0 // the Kd of foot coordinate y
-//#define KpzUPip 3000// the Kp of foot coordinate z, consistent
-//#define KdzUPip 100// the Kd of foot coordinate z
-//#define THRESH 0.3 // the up and down tag
-//#define IMPULSE_TIME 3 // the impulse push time
-//#define SLOPE -0.1 // redesign the down slope of the com z
-// trick parameters
-//#define RECOVER_PARA 4
-//#define VXRECOVER 1 // 0.01 when the vcomx is lower than the desired vcomx
-//#define COMZ_RECOVER 3
-//#define COMZ_DIFF 1 // 0.01 WHEN THE comz is higher than desired comz
-//#define COMZM_RECOVER 30
-//#define COMZM_DIFF 2 // when the comz is lower than the desired comz
-//#define FOOTZ_RECOVER 10 // when the foot is higher than the offset
-//#define ZH_OFFSET 1
 
 namespace drake {
 namespace examples {
@@ -443,6 +357,7 @@ namespace qpControl {
             static int impulse_push = IMPULSE_TIME;
 
             stance_now = foot_step_[m][0]; //-foot_step_error;
+            static double lateral_pos = -0.1;
             if (replanning) {
                 while(!isNew) {// firstly skip to the switching point
                     this_stance[0] = foot_step_[m][0]; //-foot_step_error;
@@ -455,6 +370,7 @@ namespace qpControl {
                     stance_now = this_stance[0];
                     ++m;
                 }
+                lateral_pos = -lateral_pos;
             }
             replanning = false;
 
@@ -518,8 +434,8 @@ namespace qpControl {
 
             rdis_x = rdis_x - location_bias_;
             ldis_x = ldis_x - location_bias_;
-            rdis_y = rdis_y + lateral_bias_ - 0.1;
-            ldis_y = ldis_y + lateral_bias_ - 0.1;
+            rdis_y = rdis_y + lateral_bias_ + lateral_pos;
+            ldis_y = ldis_y + lateral_bias_ + lateral_pos;
 
             // Problem Constraints ----------------------------------------------------------------------
             Eigen::Matrix<double, NF, 1> l_contact;

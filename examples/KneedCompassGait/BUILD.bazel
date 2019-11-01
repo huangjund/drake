@@ -79,6 +79,24 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "KCG_common2",
+    srcs = ["multibodyKCG.cpp"],
+    hdrs = [
+        "multibodyKCG.h",
+    ],
+    data = ["KneedCompassGait.urdf"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/parsers",
+        "//common:find_resource",
+        "//multibody/plant",
+        "//systems/primitives:linear_system",
+        "//systems/primitives:signal_logger",
+    ],
+)
+
+drake_cc_library(
     name = "qpController2",
     srcs = ["qpController2.cpp"],
     hdrs = [
@@ -244,6 +262,20 @@ drake_cc_binary(
         "//solvers:solve",
         "//systems/framework:vector_system",
         "//systems/primitives:linear_system",
+    ],
+)
+
+drake_cc_binary(
+    name = "doInverseKinematics",
+    srcs = ["doIK.cpp"],
+    deps = [
+        ":KCG_common2",
+        "//geometry:scene_graph",
+        "//lcm:drake_lcm",
+        "//multibody/inverse_kinematics",
+        "//multibody/parsing:parser",
+        "//multibody/plant",
+        "//systems/analysis:simulator",
     ],
 )
 
