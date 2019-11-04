@@ -26,9 +26,9 @@
 #include "drake/lcm/drake_lcm.h"
 
 // walk FOR eight step
-#define NQ 11
-#define NV 11
-#define NU 5
+#define NQ 12
+#define NV 12
+#define NU 6
 #define DIM 3
 #define ND 4 // friction cone approx
 #define NC 2 // 2 on the left 2 on the right
@@ -47,6 +47,7 @@
 #define W4 0
 #define W5 1e8
 #define W6 1e5
+#define W7 1e5
 #define W5i 1e5 // prevent front leg from slipping after touching ground
 #define W6i 1e8
 
@@ -56,6 +57,9 @@
 #define KDXDDY 1
 #define KPXDDZ 772 // increase to decrease height vs x
 #define KDXDDZ 50 //50
+
+#define KPYAW 1
+#define KDYAW 1
 
 #define Kpx_tra 12 // the Kp of foot coordinate x 1.9
 #define Kdx_tra 4 // the Kd of foot coordinate x 0.5
@@ -118,7 +122,7 @@ namespace qpControl {
             // (stance_x, stance_y, stance_z,
             // next_stance_x, next_stance_y, next_stance_z,
             // current_stance_leg, next stance_leg)
-            this->DeclareVectorOutputPort(KneedCompassGait::KcgInput<double>(),
+            this->DeclareVectorOutputPort(systems::BasicVector<double>(NU),
                     &qpController::CopyCommandOutSim);
             this->DeclareVectorOutputPort(systems::BasicVector<double>(37),
                                           &qpController::COM_ToeOutPut);
@@ -292,6 +296,12 @@ namespace qpControl {
             Q_slack3.setIdentity();b_slack3.setZero();
             auto cost_slack3 = prog.AddQuadraticCost(Q_slack3, b_slack3, yita_sw).evaluator();
 
+            this->weight_yaw_.setIdentity();
+            this->weight_yaw_ *= W7;
+            Eigen::Matrix<double, 1, 1> Q_yaw;
+            Eigen::Matrix<double, 1, 1> b_yaw;
+            Q_yaw.setOnes();b_yaw.setZero();
+            auto cost_yaw = prog.AddQuadraticCost(Q_yaw, b_yaw, vdot.segment(5,1)).evaluator();
             // solver setting -----------------------------------------------------------------------------
             this->prog.SetSolverOption(this->solver.solver_id(), "Method", 2);
 
@@ -307,6 +317,7 @@ namespace qpControl {
             this->cost_slack_ = cost_slack;
             this->cost_slack2_ = cost_slack2;
             this->cost_slack3_ = cost_slack3;
+            this->cost_yaw_ = cost_yaw;
         }
 
         void DoCalcDiscreteVariableUpdates(
@@ -417,12 +428,14 @@ namespace qpControl {
             contactDistances(*(this->rtree_), kinsol, *(this->lfoot_), *(this->rfoot_), phi);
 
             // foot dynamics
-            auto left_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 7, 0, true);
-            auto right_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, 11, 0, true);
-            auto left_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, 7, 0);
-            auto right_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, 11, 0);
-            auto left_toe_pos = rtree_->transformPoints(kinsol, toe_collision_bias, 7, 0);
-            auto right_toe_pos = rtree_->transformPoints(kinsol, toe_collision_bias, 11, 0);
+            int left_lower_leg = rtree_->FindBodyIndex("left_lower_leg");
+            int right_lower_leg = rtree_->FindBodyIndex("right_lower_leg");
+            auto left_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, left_lower_leg, 0, true);
+            auto right_toe_jaco = rtree_->transformPointsJacobian(kinsol, toe_collision_bias, right_lower_leg, 0, true);
+            auto left_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, left_lower_leg, 0);
+            auto right_toe_jacodotv = rtree_->transformPointsJacobianDotTimesV(kinsol, toe_collision_bias, right_lower_leg, 0);
+            auto left_toe_pos = rtree_->transformPoints(kinsol, toe_collision_bias, left_lower_leg, 0);
+            auto right_toe_pos = rtree_->transformPoints(kinsol, toe_collision_bias, right_lower_leg, 0);
             Eigen::Matrix<double, 3, 1> left_toe_Jqdot, right_toe_Jqdot;
             left_toe_Jqdot << left_toe_jaco*qd;
             right_toe_Jqdot << right_toe_jaco*qd;
@@ -492,6 +505,12 @@ namespace qpControl {
             Vector2<double> b_slack(0,0);
             this->cost_slack_->UpdateCoefficients(Q_slack, b_slack);
 
+            Eigen::Matrix<double, 1, 1> Kp_yaw(KPYAW);
+            Eigen::Matrix<double, 1, 1> Kd_yaw(KDYAW);
+            auto yawddot_des = Kp_yaw*(-q[5]) + Kd_yaw*(-qd[5]);
+            Eigen::Matrix<double, 1, 1> Q_yaw = 2*this->weight_yaw_;
+            Eigen::Matrix<double, 1, 1> b_yaw = 2*this->weight_yaw_.transpose()*yawddot_des;
+            this->cost_yaw_ ->UpdateCoefficients(Q_yaw, b_yaw);
             // stance foot constraint and cost------------------------------------------------------------
             Eigen::Matrix<double, 3, 3> I;
             Eigen::Matrix<double, 3, 1> b_slack2;
@@ -1159,16 +1178,21 @@ namespace qpControl {
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
 
             Eigen::Matrix<double, 3, 1> bias_mass(0,0,0);
-            auto left_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, 8, 0);
-            auto left_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, 6, 0);
-            auto right_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, 12, 0);
-            auto right_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, 10, 0);
-            auto hip_mass = rtree_->transformPoints(kinsol, bias_mass, 2, 0);
-            auto llowleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 8, 0, true)*qd;
-            auto luppleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 6, 0, true)*qd;
-            auto rlowleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 12, 0, true)*qd;
-            auto ruppleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 10, 0, true)*qd;
-            auto hip_v = rtree_->transformPointsJacobian(kinsol, bias_mass, 2, 0, true)*qd;
+            int left_lower_mass_index = rtree_->FindBodyIndex("left_lower_leg_mass");
+            int left_up_mass_index = rtree_->FindBodyIndex("left_upper_leg_mass");
+            int right_lower_mass_index = rtree_->FindBodyIndex("right_lower_leg_mass");
+            int right_upper_mass_index = rtree_->FindBodyIndex("right_upper_leg_mass");
+            int base_link_index = rtree_->FindBodyIndex("base_link");
+            auto left_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, left_lower_mass_index, 0);
+            auto left_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, left_up_mass_index, 0);
+            auto right_lowleg_mass = rtree_->transformPoints(kinsol, bias_mass, right_lower_mass_index, 0);
+            auto right_upleg_mass = rtree_->transformPoints(kinsol, bias_mass, right_upper_mass_index, 0);
+            auto hip_mass = rtree_->transformPoints(kinsol, bias_mass, base_link_index, 0);
+            auto llowleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, left_lower_mass_index, 0, true)*qd;
+            auto luppleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, left_up_mass_index, 0, true)*qd;
+            auto rlowleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, right_lower_mass_index, 0, true)*qd;
+            auto ruppleg_v = rtree_->transformPointsJacobian(kinsol, bias_mass, right_upper_mass_index, 0, true)*qd;
+            auto hip_v = rtree_->transformPointsJacobian(kinsol, bias_mass, base_link_index, 0, true)*qd;
 
             auto K = qd.transpose()*H*qd/2;
             auto V = 2.5*9.81*(left_lowleg_mass(2,0)+left_upleg_mass(2,0)+right_lowleg_mass(2,0)+right_upleg_mass(2,0)) +
@@ -1352,14 +1376,10 @@ namespace qpControl {
         }
 
         void CopyCommandOutSim(const systems::Context<double>& context,
-                             drake::examples::KneedCompassGait::KcgInput<double>* output) const {
+                             systems::BasicVector<double>* output) const {
             t = context.get_time();
-//            std::cout << "copy state out:" << context.get_discrete_state()[2] << "\t output time:" << t << std::endl;
-            output->set_hrtau(context.get_discrete_state()[0]);
-            output->set_htau(context.get_discrete_state()[1]);
-            output->set_ltau(context.get_discrete_state()[2]);
-            output->set_hytau(context.get_discrete_state()[3]);
-            output->set_rtau(context.get_discrete_state()[4]);
+            auto states = context.get_discrete_state_vector().CopyToVector();
+            output->SetFromVector(states);
         }
 
         void COM_ToeOutPut(const systems::Context<double>& context,

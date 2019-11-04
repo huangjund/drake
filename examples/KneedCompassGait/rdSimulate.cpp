@@ -24,10 +24,10 @@
 #include "drake/systems/primitives/constant_vector_source.h"
 #include "drake/systems/primitives/signal_logger.h"
 
-#define NQ 11
-#define NV 11
-#define NU 5
-#define STATE 22
+#define NQ 12
+#define NV 12
+#define NU 6
+#define STATE 24
 
 namespace drake {
 namespace examples {
@@ -85,6 +85,7 @@ namespace kkk {
         constant_vector[2] = 0;
         constant_vector[3] = 0;
         constant_vector[4] = 0;
+        constant_vector[5] = 0;
         auto constant_zero_source =
                 base_builder->AddSystem<ConstantVectorSource<double>>(constant_vector);
         constant_zero_source->set_name("zero input");

@@ -25,7 +25,7 @@
 #include "drake/manipulation/util/sim_diagram_builder.h"
 #include "drake/systems/primitives/signal_logger.h"
 
-#define TIME_RATE 0.5
+#define TIME_RATE 0.01
 #define SIMULATION_TIME 0.28
 #define BOUND 0.14
 #define LATERALBOUND 0.05
@@ -66,7 +66,6 @@ namespace qpControl {
 
         // instantiate a rigidbodyplant from the rigidbodytree
         auto visulizer = base_builder.AddSystem<systems::DrakeVisualizer>(*tree, &lcm, true);
-
         auto& kcg = *base_builder.AddSystem<RigidBodyPlant<double>>(move(tree));
         examples::kkk::setDefaultContactParams(kcg);
         // construct the controller

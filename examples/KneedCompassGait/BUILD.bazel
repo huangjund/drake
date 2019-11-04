@@ -102,7 +102,6 @@ drake_cc_library(
     hdrs = [
         "qpController2.h",
         "simulator.h",
-        #"system.h",
     ],
     data = [
         "data.txt",

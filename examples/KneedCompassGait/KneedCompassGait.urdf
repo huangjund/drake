@@ -8,6 +8,11 @@
         <parent link="base_link"/>
     </joint>
     <link name="hip_line">
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="10"/>
+            <inertia ixx="0.03333333" ixy="0" ixz="0" iyy="0.00028125" iyz="0" izz="0.03333333"/>
+        </inertial>
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
@@ -18,7 +23,9 @@
             </material>
         </visual>
     </link>
+
     <link name="right_hip2roll"/>
+    <link name="left_hip2roll"/>
 
     <link name="left_upper_leg">
         <visual>
@@ -205,32 +212,17 @@
         <child link="right_lower_leg_mass"/>
     </joint>
 
-    <link name="hip_mass">
-        <inertial>
-            <origin xyz="0 0 0"/>
-            <mass value="10"/>
-            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
-        </inertial>
-        <visual>
-            <origin xyz="0 0 0"/>
-            <geometry>
-                <sphere radius="0.05"/>
-            </geometry>
-            <material name="green">
-                <color rgba="0 1 0 1"/>
-            </material>
-        </visual>
-    </link>
-    <joint name="hip_mass_weld" type="fixed">
-        <child link="hip_mass"/>
-        <parent link="hip_line"/>
-    </joint>
-
     <joint name="leftHip_roll" type="continuous">
         <origin xyz="0 0 0.1" rpy="-1.5708 0 0"/>
         <parent link="hip_line"/>
-        <child link="left_upper_leg"/>
+        <child link="left_hip2roll"/>
         <axis xyz="1 0 0"/>
+        <limit effort="200" velocity="100"/>
+    </joint>
+    <joint name="leftHip_pin" type="continuous">
+        <parent link="left_hip2roll"/>
+        <child link="left_upper_leg"/>
+        <axis xyz="0 1 0"/>
         <limit effort="200" velocity="100"/>
     </joint>
     <joint name="rightHip_roll" type="continuous">
@@ -265,6 +257,11 @@
     <transmission name="leftHip_rollTrans" type="SimpleTransmission">
         <actuator name="left_hip_roll_torque"/>
         <joint name="leftHip_roll"/>
+        <mechanicalReduction>1</mechanicalReduction>
+    </transmission>
+    <transmission name="leftHip_pinTrans" type="SimpleTransmission">
+        <actuator name="left_hip_pin_torque"/>
+        <joint name="leftHip_pin"/>
         <mechanicalReduction>1</mechanicalReduction>
     </transmission>
     <transmission name="rightHip_rollTrans" type="SimpleTransmission">

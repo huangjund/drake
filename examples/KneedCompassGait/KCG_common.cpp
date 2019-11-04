@@ -2,8 +2,6 @@
 // Created by Junda on 8/9/19.
 //
 #include "drake/examples/KneedCompassGait/KCG_common.h"
-//#include "drake/examples/KneedCompassGait/linear_system.h"
-//#include "drake/examples/KneedCompassGait/system.h"
 
 namespace drake {
 namespace examples {
@@ -55,11 +53,11 @@ namespace kkk {
     template void setDefaultContactParams<double>(systems::RigidBodyPlant<double>&);
 
     VectorX<double> KCGFixedPointState() {
-        VectorX<double> ret(22);
-        ret << -0.9504, 0, 0.8634, 0, 0.3300, 0,
-                0, 0, -1.01, 0.4053, -0.9077,
+        VectorX<double> ret(24);
+        ret << -0.9504, 0, 0.8634, 0, 0, 0,
+                0, 0, 0.3300, -1.01, 0.7353, -0.9077,
                 -0.83, 0.3254, 0.1245, 0, 0, 0,
-                0, 0, 0, 0, 0;
+                0, 0, 0, 0, 0, 0;
 //         left leg stance 0.4
 //          ret << -0.9504, 0, 0.8634, 0, 0.3300, 0,
 //                  0, 0.4053, -1.0100, 0, -0.9077,
@@ -97,8 +95,8 @@ namespace kkk {
     }
 
     VectorX<double> KCGFixedPointTorque(){
-        VectorX<double> ff_torque(5);
-        ff_torque << 0, 0, 0, 0, 0;
+        VectorX<double> ff_torque(6);
+        ff_torque << 0, 0, 0, 0, 0, 0;
         return ff_torque;
     }
 
