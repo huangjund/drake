@@ -6,6 +6,7 @@
 namespace drake {
 namespace examples {
 namespace kkk {
+    // return a disred data type rigidbodytree of kneed compass gait model
     template <typename Scalar>
     std::unique_ptr<RigidBodyTree<Scalar>>
     getKCGTree() {
@@ -23,11 +24,16 @@ namespace kkk {
         return tree;
     }
 
+    // most of the time we will use "double" data type
+    // so we just call this function and it will return a specified double data type
+    // rigidbodytree of kneed compass gait
     std::unique_ptr<RigidBodyTree<double>>
     getKCGTreed(){
         return getKCGTree<double>();
     }
 
+    // to set some contact parameters of the simulation environment
+    // more detailed description can be attained by read the name of the varible or function
     template <typename T>
     void setDefaultContactParams(systems::RigidBodyPlant<T>& plant) {
         const double kYoung = 1e8; // Pa
@@ -52,11 +58,18 @@ namespace kkk {
     //explicit initiate the setDefaultContactParams template
     template void setDefaultContactParams<double>(systems::RigidBodyPlant<double>&);
 
+    // this is to set the initial state of the kneed compass gait
     VectorX<double> KCGFixedPointState() {
         VectorX<double> ret(24);
+
+        /* the physical meaning of these 24 values
+        |floating base x | floating base y | floating base z| floating base roll | floating base pitch | floating base yaw|
+        |right hip roll  | left hip roll   | left hip pitch | left knee pitch    | right hip pitch     | right knee pitch |
+        the left 12 parameters are the velocity exactly corresponding to 12 parameters above
+        */
         ret << -0.9504, 0, 0.8634, 0, 0, 0,
                 0, 0, 0.3300, -1.01, 0.7353, -0.9077,
-                -0.83, 0.3254, 0.1245, 0, 0, 0,
+                -0.9, 0.30, 0.1245, 0, 0, 0,
                 0, 0, 0, 0, 0, 0;
 //         left leg stance 0.4
 //          ret << -0.9504, 0, 0.8634, 0, 0.3300, 0,
@@ -94,6 +107,7 @@ namespace kkk {
         return ret;
     }
 
+    // fixed torque, not being used in this framework
     VectorX<double> KCGFixedPointTorque(){
         VectorX<double> ff_torque(6);
         ff_torque << 0, 0, 0, 0, 0, 0;

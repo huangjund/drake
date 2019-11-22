@@ -22,6 +22,15 @@
                 <color rgba="0 1 0 1"/>
             </material>
         </visual>
+        <visual>
+            <origin rpy="1.57 0 0"/>
+            <geometry>
+                <cylinder length="0.2" radius="0.003"/>
+            </geometry>
+            <material name="green">
+                <color rgba="0 1 0 1"/>
+            </material>
+        </visual>
     </link>
 
     <link name="right_hip2roll"/>

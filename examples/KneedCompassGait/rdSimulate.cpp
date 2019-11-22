@@ -65,7 +65,7 @@ namespace kkk {
         // Create Plant
         auto tree = std::make_unique<RigidBodyTree<double>>();
         tree = getKCGTreed();
-        printCOM(*tree);
+        printCOM(*tree);  // print out the initial COM position
         plant = builder.AddPlant(std::move(tree));
 
         // Create LCM publisher for visualization
@@ -78,6 +78,9 @@ namespace kkk {
         drake::systems::DiagramBuilder<double> *base_builder =
                 builder.get_mutable_builder();
 
+        // this constant vector is used to complement the input port of 
+        // the rigid body plant of the kneed compass gait
+        // We set the input torque to 0 here.
         VectorX<double> constant_vector(plant->get_input_port(0).size());
         constant_vector.setZero();
         constant_vector[0] = 0;
@@ -94,6 +97,7 @@ namespace kkk {
         base_builder->Connect(constant_zero_source->get_output_port(),
                               plant->get_input_port(0));
 
+        // define a logger so that we can extract the inner states when the systems are running
         auto logger1 = systems::LogOutput(plant->get_output_port(0), base_builder);
    //     auto logger2 = systems::LogOutput(plant->contact_results_output_port(), base_builder);
 
@@ -107,19 +111,21 @@ namespace kkk {
         simulator.get_mutable_context().SetAccuracy(1e-4);
 
         plant->set_state_vector(&simulator.get_mutable_context(),
-                                KCGFixedPointState());
+                                KCGFixedPointState()); // set the initial states
 
         simulator.Initialize();
 
         simulator.AdvanceTo(0.25);
 
+        // after finishing running the simulation, we use looger to get the data
+        // so that we can plot them in matlab
         Eigen::MatrixXd data1 = logger1->data();
         Eigen::MatrixXd sampleTime1 = logger1->sample_times();
         std::string kFile;
         kFile = "data1.csv";
-        writeCSV(data1, kFile);
+        writeCSV(data1, kFile);  // write data into a csv file
         kFile = "time1.csv";
-        writeCSV(sampleTime1, kFile);
+        writeCSV(sampleTime1, kFile); 
 //        Eigen::MatrixXd data2 = logger2->data();
 //        Eigen::MatrixXd sampleTime2 = logger2->sample_times();
 //        cout << "data2\n" << data2 << endl;

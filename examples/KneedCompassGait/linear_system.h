@@ -152,7 +152,7 @@ namespace linear_system {
                     foot(0, 0) = U(0, 0);
                     foot(3, 0) = 0;
                     foot(5, 0) = 0;
-//                    std::cout << "height************************" << time << std::endl;
+                    // std::cout << "height************************" << time << std::endl;
                     U(0, 0) = U(0, 0) + action_list[step].step_length;
                     U(1, 0) = -U(1, 0);
                     U(2, 0) = U(2, 0) + action_list[step].dheight;
@@ -177,9 +177,9 @@ namespace linear_system {
                     X(2, 0) = U(2, 0) + action_list[step].z_apex;
                     X(5, 0) = x_slopes[surf] * X(3, 0) - 0.2 * X(4, 0);
                    // std::cout << "top:........" << std::endl;
-//                    std::cout << X(0, 0) << "\t" << X(1, 0) << "\t" << X(2, 0) << "\t"
-//                              << X(3, 0) << "\t" << X(4, 0) << "\t" << xdot(5, 0)
-//                              << std::endl;
+                // std::cout << X(0, 0) << "\t" << X(1, 0) << "\t" << X(2, 0) << "\t"
+                //           << X(3, 0) << "\t" << X(4, 0) << "\t" << xdot(5, 0)
+                //           << std::endl;
                     surf++;
                 }
                 time = time + h;
@@ -189,8 +189,8 @@ namespace linear_system {
                 foot(0, 0) = foot(0, 0) + foot(3, 0) * h;
                 double tau = HighVel/6;
                 double x_val = 0.5*tau*HighVel;
-//                double ttot = 4*action_list[step].step_length/HighVel;
-//                std::cout<<tau<<"   " <<ttot<<std::endl;
+                //                double ttot = 4*action_list[step].step_length/HighVel;
+                //                std::cout<<tau<<"   " <<ttot<<std::endl;
                 double acc;
                 if (foot(0, 0) <= U(0,0)-(action_list[step].step_length-x_val)) {
                     acc = ACC;
@@ -230,6 +230,9 @@ namespace linear_system {
                 double a = LateralBias/2.0;
                 double y = a*std::sin(w*(X[0]-1)), ydot = a*w*std::cos(w*(X[0]-1))*X[3];
                 X(1,0) = y; X(4,0) = ydot;
+
+                // these several lines is used to print out the COM trajectory and is needed to be output to data.txt
+                // every row of the vector is [x,y,z,xdot,ydot,zdot]
                 for (int i = 0; i < 6; ++i) {
                     if (i == 0 || i == 3)
                         std::cout << std::fixed << std::setprecision(6) << -X[i] << " ";
@@ -239,6 +242,12 @@ namespace linear_system {
                 X(1,0) = 0; X(4,0) = 0;
                 std::cout << "\n";
 
+                //these several lines is used to print out the foot location and is needed to be output to data2.txt
+                // every row of the vector is [stance_x, stance_y, stance_z, next_stance_x, next_stance_y,
+                // next_stance_z, current_stance_leg, next stance_leg]
+                // stance_x means current stance leg foot location x
+                // next_stance_x means next stance leg disred foot location x
+                // current_stance_leg, '0', means the right leg, '1', means the left leg
 //                        auto d_state =
 //                        context.get_discrete_state().get_vector().CopyToVector(); for
 //                        (int i = 0; i < 8; ++i) {
@@ -248,6 +257,8 @@ namespace linear_system {
 //
 //                        std::cout << "\n";
 
+                // these several lines is used to print out the the foot trajectory and is needed to be output to data3.txt
+                // every row of the vector is [foot_x, foot_y, foot_z, foot_xdot, foot_ydot, foot_zdot]
 //                        for (int i = 0; i < 6; ++i) {
 //                            if (i == 0 || i == 3)
 //                                std::cout << std::fixed << std::setprecision(6) <<

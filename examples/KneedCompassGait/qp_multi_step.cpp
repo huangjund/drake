@@ -25,8 +25,8 @@
 #include "drake/manipulation/util/sim_diagram_builder.h"
 #include "drake/systems/primitives/signal_logger.h"
 
-#define TIME_RATE 0.01
-#define SIMULATION_TIME 0.28
+#define TIME_RATE 0.05
+#define SIMULATION_TIME 0.2
 #define BOUND 0.14
 #define LATERALBOUND 0.05
 
@@ -72,6 +72,8 @@ namespace qpControl {
         auto qpcontroller = base_builder.AddSystem<qpController>();
 
 
+        // create three loggers to extract some iner datas when running the simulation
+        // this datas can be used to be plotted in Matlab
         auto logger1 = systems::LogOutput(kcg.get_output_port(0), &base_builder);
         auto logger2 = systems::LogOutput(qpcontroller->get_output_port(0), &base_builder);
         auto logger3 = systems::LogOutput(qpcontroller->get_output_port(1), &base_builder);
@@ -94,11 +96,14 @@ namespace qpControl {
         simulator.set_publish_every_time_step(true);
 
         VectorX<double> x = examples::kkk::KCGFixedPointState();
-        kcg.set_state_vector(&kcg_mutable_context, x);
+        kcg.set_state_vector(&kcg_mutable_context, x); // set the initial states of kneed compass gait
         stx::optional<double> accuracy = 1e-14;
-        simulator.get_mutable_context().SetAccuracy(accuracy);
+        simulator.get_mutable_context().SetAccuracy(accuracy); // set accuracy of the computation
         double c_time=0;// ,d_time=0;
 
+        // some contexts and states, detail things can be got from the codes
+        // all of these variables are used to implement bi-section method, where 
+        // I don't employ this method in 3D motion, which means these variables are useless now
         auto& last_sim_context = simulator.get_context();
         auto& last_kcg_context = diagram->GetSubsystemContext(kcg, last_sim_context);
         auto& last_qp_context = diagram->GetSubsystemContext(*qpcontroller, last_sim_context);
@@ -107,6 +112,7 @@ namespace qpControl {
         auto& last_qp_a_states = last_qp_context.get_abstract_state();
 
         // last abstract states of qp controller
+        // bi-section variables
         std::vector<std::unique_ptr<AbstractValue>> abstract_vector;
         abstract_vector.push_back(last_qp_a_states.get_value(0).Clone()); // period_state_
         abstract_vector.push_back(last_qp_a_states.get_value(1).Clone()); // sim_tim_
@@ -142,6 +148,11 @@ namespace qpControl {
         simulator.AdvanceTo(SIMULATION_TIME);
 
         int i = 1000;
+        // this is the iteration loop of bi-section method
+        // so it is not deserve to read line by line
+        // this simulation triggering line is :            
+        // simulator.Initialize();
+        // simulator.AdvanceTo(SIMULATION_TIME);
         while (i--) {
             // current state obtain
             auto& sim_context = simulator.get_context();
@@ -297,11 +308,12 @@ namespace qpControl {
             }
         }
 
+        // output those datas logged by those three loggers
         Eigen::MatrixXd data1 = logger1->data();
         Eigen::MatrixXd sampleTime1 = logger1->sample_times();
         std::string kFile;
         kFile = "data1.csv";
-        writeCSV(data1, kFile);
+        writeCSV(data1, kFile);// write datas into a csv file, which can be readily plotted by Matlab
         kFile = "time1.csv";
         writeCSV(sampleTime1, kFile);
 
@@ -319,6 +331,8 @@ namespace qpControl {
         kFile = "time3.csv";
         writeCSV(sampleTime3, kFile);
 
+        // play back the simulation
+        // but it is not used in this file
         while(true)
             visulizer->ReplayCachedSimulation();
         return 0;
@@ -330,31 +344,3 @@ namespace qpControl {
 int main() {
     return drake::examples::qpControl::doMain();
 }
-
-//                    Abstract_vector[0] = AbstractValue::Make(qp_a_states.get_value(0).get_value<int>());
-//                    Abstract_vector[1] = AbstractValue::Make(qp_a_states.get_value(1).get_value<double>());
-//                    Abstract_vector[2] = AbstractValue::Make(qp_a_states.get_value(2).get_value<double>());
-//                    Abstract_vector[3] = AbstractValue::Make(qp_a_states.get_value(3).get_value<Eigen::Matrix<double, NU, 1>>());
-//                    Abstract_vector[4] = AbstractValue::Make(qp_a_states.get_value(4).get_value<int>());
-//                    Abstract_vector[5] = AbstractValue::Make(qp_a_states.get_value(5).get_value<int>());
-//                    Abstract_vector[6] = AbstractValue::Make(qp_a_states.get_value(6).get_value<bool>());
-//                    Abstract_vector[7] = AbstractValue::Make(qp_a_states.get_value(7).get_value<int>());
-//                    Abstract_vector[8] = AbstractValue::Make(qp_a_states.get_value(8).get_value<bool>());
-//                    Abstract_vector[9] = AbstractValue::Make(qp_a_states.get_value(9).get_value<bool>());
-//                    Abstract_vector[10] = AbstractValue::Make(qp_a_states.get_value(10).get_value<double>());
-//                    Abstract_vector[11] = AbstractValue::Make(qp_a_states.get_value(11).get_value<double>());
-//                    Abstract_vector[12] = AbstractValue::Make(qp_a_states.get_value(12).get_value<bool>());
-
-//                    last_period_state = qp_a_states.get_value(0).get_value<int>();
-//                    last_sim_time = qp_a_states.get_value(1).get_value<double>();
-//                    last_t = qp_a_states.get_value(2).get_value<double>();
-//                    last_t_pre = qp_a_states.get_value(3).get_value<Eigen::Matrix<double, NU, 1>>();
-//                    last_m = qp_a_states.get_value(4).get_value<int>();
-//                    last_count_num = qp_a_states.get_value(5).get_value<int>();
-//                    last_count_num_change = qp_a_states.get_value(6).get_value<bool>();
-//                    last_step_num = qp_a_states.get_value(7).get_value<int>();
-//                    last_replanning = qp_a_states.get_value(8).get_value<bool>();
-//                    last_isNew = qp_a_states.get_value(9).get_value<bool>();
-//                    last_stance_now = qp_a_states.get_value(10).get_value<double>();
-//                    last_location_bias = qp_a_states.get_value(11).get_value<double>();
-// the index 12 abstract state is awalys set by main functions as a semaphore

@@ -26,9 +26,9 @@
 #include "drake/lcm/drake_lcm.h"
 
 // walk FOR eight step
-#define NQ 12
-#define NV 12
-#define NU 6
+#define NQ 12 // nubmer of positions
+#define NV 12 // number of velocities
+#define NU 6 // number of joints
 #define DIM 3
 #define ND 4 // friction cone approx
 #define NC 2 // 2 on the left 2 on the right
@@ -37,47 +37,54 @@
 #define mu 1.0
 #define COM 6 // state of COM
 #define ALPHA 0
-#define ZH 0.08 // the desired z height of foot toe
+
 #define STEP_LEN 0.4 // one foot step length
 #define contact_phi 1e-3
-#define W1 1e5
-#define W1y 1e5
+#define W1 1e5 // control the com x and z double dot
+#define W1y 1e5  // control the weitght of com y double dot
 #define W2 1e3
 #define W3 0
 #define W4 0
-#define W5 1e8
+#define W5 1e10
 #define W6 1e5
-#define W7 1e5
+#define W7 1e5  // control the floating base yaw angle to 0
+#define W8 1e4  // control of the floating base roll and pitch
 #define W5i 1e5 // prevent front leg from slipping after touching ground
-#define W6i 1e8
+#define W6i 1e10
 
+// COM x y z PD controller
 #define KPXDDX 10
-#define KDXDDX 45
-#define KPXDDY 1
+#define KDXDDX 0
+#define KPXDDY 10
 #define KDXDDY 1
-#define KPXDDZ 772 // increase to decrease height vs x
-#define KDXDDZ 50 //50
+#define KPXDDZ 500 // increase to decrease height vs x
+#define KDXDDZ 10 //50
 
-#define KPYAW 1
-#define KDYAW 1
+// floating base yaw state PD controller
+#define KPYAW 10
+#define KDYAW 0
 
-#define Kpx_tra 12 // the Kp of foot coordinate x 1.9
-#define Kdx_tra 4 // the Kd of foot coordinate x 0.5
-#define Kpz_tra 9
-#define Kdz_tra 5
+// foot trajectory x z PD controller
+#define Kpx_tra 0 // the Kp of foot coordinate x 1.9
+#define Kdx_tra 0 // the Kd of foot coordinate x 0.5
+#define Kpz_tra 0
+#define Kdz_tra 0
 
-#define Kpx_loc 30
-#define Kdx_loc 5
-#define KpzUP_loc 50
+// foot location x z PD controller
+#define Kpx_loc 10
+#define Kdx_loc 0
+#define KpzUP_loc 200
 #define KdzUP_loc 0
-#define KpzDOWN_loc 100
+#define KpzDOWN_loc 1
 #define KdzDOWN_loc 0
 
+// foot trajectory and foot location y PD controller
 #define Kpy_tra 0// the Kp of foot coordinate y
 #define Kdy_tra 0 // the Kd of foot coordinate y
-#define Kpy_loc 100
+#define Kpy_loc 10
 #define Kdy_loc 0
 
+// impact phase PD controller
 #define Kpxi 6// the Kp of foot coordinate x
 #define Kdxi 0 // the Kd of foot coordinate x
 #define Kpyi 0 // the Kp of foot coordinate y
@@ -85,19 +92,22 @@
 #define KpzUPi 3000// the Kp of foot coordinate z, consistent
 #define KdzUPi 0// the Kd of foot coordinate z
 
-// trick dumpe
+// trick dumpe (don't change)
 #define KpzUPd 3000
 
-// trick ground impulse parameters
+// trick ground impulse parameters, don't change
 #define Kpxip 0// the Kp of foot coordinate x
 #define Kdxip 0 // the Kd of foot coordinate x
 #define Kpyip 0 // the Kp of foot coordinate y
 #define Kdyip 0 // the Kd of foot coordinate y
 #define KpzUPip 8000// the Kp of foot coordinate z, consistent
 #define KdzUPip 100// the Kd of foot coordinate z
-#define THRESH 0.1 // the up and down tag
 #define IMPULSE_TIME 3 // the impulse push time
+// foot location heuristic
+#define ZH 0.08 // the desired z height of foot toe
+#define THRESH 0.3 // the up and down tag
 
+// don't change
 #define Lowest_V 0.57
 #define BandWidth_L 0.05
 #define TOP 1.0
@@ -110,6 +120,7 @@ namespace examples {
 namespace qpControl {
     class qpController : public systems::LeafSystem<double> {
     public:
+        // this is the controller initiallization part
         qpController() {
             // get rigidbodytree of kneed compass gait
             this->rtree_=getKCGTree<double>();
@@ -127,6 +138,7 @@ namespace qpControl {
             this->DeclareVectorOutputPort(systems::BasicVector<double>(37),
                                           &qpController::COM_ToeOutPut);
 
+            // these abract states are defined to be used in bi-section method, some semophore variables
             // to judge the runing period;
             // period_state_
             // 2 means regular running
@@ -150,7 +162,7 @@ namespace qpControl {
             this->DeclareAbstractState(AbstractValue::Make(lateral_incline_));
             this->DeclareAbstractState(AbstractValue::Make(lateral_bias_));
 
-            this->DeclareDiscreteState(NU);
+            this->DeclareDiscreteState(NU); // define the control output
 
             this->DeclarePeriodicDiscreteUpdate(0.0005);
             this->DeclarePeriodicUnrestrictedUpdateEvent(0.0005, 0, &qpController::AbstractUpdate);
@@ -172,6 +184,8 @@ namespace qpControl {
            // constexpr double slack_limit = 10.0;
             this->initialized = false;
 
+
+            // read disred values from data.txt data2.txt data3.txt
             Eigen::Matrix<double, NU, 1> t_pre;
             t_pre.setZero();
             std::ifstream ifstr_data("examples/KneedCompassGait/data.txt");
@@ -300,8 +314,14 @@ namespace qpControl {
             this->weight_yaw_ *= W7;
             Eigen::Matrix<double, 1, 1> Q_yaw;
             Eigen::Matrix<double, 1, 1> b_yaw;
-            Q_yaw.setOnes();b_yaw.setZero();
+            Q_yaw.setIdentity();b_yaw.setZero();
             auto cost_yaw = prog.AddQuadraticCost(Q_yaw, b_yaw, vdot.segment(5,1)).evaluator();
+
+            Eigen::Matrix<double, 2, 2> Q_rp;
+            Eigen::Matrix<double, 2, 1> b_rp;
+            Q_rp.setIdentity();b_rp.setZero();
+            Q_rp *= W8;
+            prog.AddQuadraticCost(Q_rp,b_rp,{vdot.segment(3,1),vdot.segment(4,1)});
             // solver setting -----------------------------------------------------------------------------
             this->prog.SetSolverOption(this->solver.solver_id(), "Method", 2);
 
@@ -320,6 +340,7 @@ namespace qpControl {
             this->cost_yaw_ = cost_yaw;
         }
 
+        // this is the iteration part
         void DoCalcDiscreteVariableUpdates(
                 const drake::systems::Context<double>& context,
                 const std::vector<const drake::systems::DiscreteUpdateEvent<double>*>& ,
@@ -328,10 +349,10 @@ namespace qpControl {
             using std::endl;
             t = context.get_time();
 
-            cout << "stance Now:" << stance_now_   <<
-                 "\tsim_tim:" << sim_time << "\tt" << t << "\tstep_num:" <<
-                 step_num_   << "\tperiod_state:" << period_state_ <<
-                 "\tm:" << m_ << "\tlocation bias:" << location_bias_  << "\tlateral incline" << lateral_bias_ << endl;
+//            cout << "stance Now:" << stance_now_   <<
+//                 "\tsim_tim:" << sim_time << "\tt" << t << "\tstep_num:" <<
+//                 step_num_   << "\tperiod_state:" << period_state_ <<
+//                 "\tm:" << m_ << "\tlocation bias:" << location_bias_  << "\tlateral incline" << lateral_bias_ << endl;
 
             if (sim_time <= t-h) {
             VectorX<double> x = this->EvalVectorInput(context, 0)->CopyToVector();
@@ -341,6 +362,7 @@ namespace qpControl {
             static int count_num = count_num_;
             static bool count_num_change = count_num_change_;
             static int step_num = step_num_;
+            // these parameters are all used in bi-section method
             if (semophore_) {
                 m = m_;
                 count_num = count_num_;count_num_change = count_num_change_;step_num = step_num_;t_pre = t_pre_;
@@ -380,7 +402,7 @@ namespace qpControl {
                     }
                     stance_now = this_stance[0];
                     ++m;
-                }
+                    }
                 lateral_pos = -lateral_pos;
             }
             replanning = false;
@@ -441,14 +463,14 @@ namespace qpControl {
             right_toe_Jqdot << right_toe_jaco*qd;
 
             double rdis_x = next_stance[0] - right_toe_pos[0];
-            double rdis_y = next_stance[1] - right_toe_pos[1];
+            double rdis_y = next_stance[1] - right_toe_pos[1] + lateral_pos;
             double ldis_x = next_stance[0] - left_toe_pos[0];
-            double ldis_y = next_stance[1] - left_toe_pos[1];
+            double ldis_y = next_stance[1] - left_toe_pos[1] + lateral_pos;
 
             rdis_x = rdis_x - location_bias_;
             ldis_x = ldis_x - location_bias_;
-            rdis_y = rdis_y + lateral_bias_ + lateral_pos;
-            ldis_y = ldis_y + lateral_bias_ + lateral_pos;
+            rdis_y = rdis_y + lateral_bias_;
+            ldis_y = ldis_y + lateral_bias_;
 
             // Problem Constraints ----------------------------------------------------------------------
             Eigen::Matrix<double, NF, 1> l_contact;
@@ -493,13 +515,15 @@ namespace qpControl {
 
             auto Q_xdd = 2*Jcom.transpose()*wxddot*Jcom;
             auto b_xdd = 2*Jcom.transpose()*wxddot*(Jcomdot_times_v-xddot_des);
-            this->cost_xddot_->UpdateCoefficients(Q_xdd, b_xdd);
+            double c_xdd = xddot_des.transpose()*wxddot*xddot_des;
+            this->cost_xddot_->UpdateCoefficients(Q_xdd, b_xdd, c_xdd);
 
 
             Eigen::Matrix<double, NU, NU> Q_t = 2*this->weight_t_;
             Eigen::Matrix<double, NU, 1> b_t = 2*this->weight_t_.transpose()*(-t_pre);
-            if (count == 2){ Q_t *= 0; b_t *= 0;}
-            this->cost_t_->UpdateCoefficients(Q_t, b_t);
+            double c_t = t_pre.transpose()*this->weight_t_*t_pre;
+            if (count == 2){ Q_t *= 0; b_t *= 0;c_t*=0;}
+            this->cost_t_->UpdateCoefficients(Q_t, b_t, c_t);
 
             Eigen::Matrix<double, 2, 2> Q_slack = 2*this->weight_slack_;
             Vector2<double> b_slack(0,0);
@@ -509,8 +533,10 @@ namespace qpControl {
             Eigen::Matrix<double, 1, 1> Kd_yaw(KDYAW);
             auto yawddot_des = Kp_yaw*(-q[5]) + Kd_yaw*(-qd[5]);
             Eigen::Matrix<double, 1, 1> Q_yaw = 2*this->weight_yaw_;
-            Eigen::Matrix<double, 1, 1> b_yaw = 2*this->weight_yaw_.transpose()*yawddot_des;
-            this->cost_yaw_ ->UpdateCoefficients(Q_yaw, b_yaw);
+            Eigen::Matrix<double, 1, 1> b_yaw = -2*this->weight_yaw_.transpose()*yawddot_des;
+            double c_yaw = (this->weight_yaw_*yawddot_des).transpose()*yawddot_des;
+            this->cost_yaw_->UpdateCoefficients(Q_yaw, b_yaw,c_yaw);
+
             // stance foot constraint and cost------------------------------------------------------------
             Eigen::Matrix<double, 3, 3> I;
             Eigen::Matrix<double, 3, 1> b_slack2;
@@ -571,6 +597,9 @@ namespace qpControl {
 
             period_state_ = update_automata(isNew, step_num, -vcom(0,0), com(1,0));
 
+            // this whole part serves for swing leg and stance leg constraint and cost
+            // because there are several different phase, so I use some variables to judge
+            // it is now in which phase
             if (isNew){
                 if (left_is_stance){    // if this trajectory is new and left is the stance leg then is swing phase
                     count_num = count;
@@ -1177,6 +1206,30 @@ namespace qpControl {
             auto result_vec = result.GetSolution();
             Eigen::Matrix<double, NU, 1> u(result_vec.middleRows(NQ, NU));
 
+            std::cout <<"|==========q=======\t"<<"|========v=========\t" <<
+                      "|=========vdot=========\t" << "|==========u==========\t"
+                      << "|=========beta=========\t" <<  "|==yita=stance swing==\t"
+                      << "|======foot des tra====\t" <<  std::endl;
+            for (int k = 0; k < NQ; ++k) {
+                cout << "|" << std::fixed<<std::setprecision(8) << q[k] << "\t\t";
+                cout << "|" << std::fixed<<std::setprecision(8) << qd[k] << "\t\t";
+                std::cout << "|"<<std::fixed<<std::setprecision(8) << result_vec.middleRows(0,NQ)[k] << "\t\t";
+                if (k<NU) // u
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ,NU)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<NF) // beta
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU,NF)[k] << "\t\t";
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                if (k<6){ // yita_stance then swing
+                    std::cout <<"|"<<std::fixed<<std::setprecision(8)<< result_vec.middleRows(NQ+NU+NF+2,6)[k] << "\t\t";
+                }
+                else
+                    std::cout <<"|"<< "\t\t\t";
+                std::cout << "\n";
+            }
+
             Eigen::Matrix<double, 3, 1> bias_mass(0,0,0);
             int left_lower_mass_index = rtree_->FindBodyIndex("left_lower_leg_mass");
             int left_up_mass_index = rtree_->FindBodyIndex("left_upper_leg_mass");
@@ -1266,7 +1319,6 @@ namespace qpControl {
             state->template get_mutable_abstract_state<int>(15) = lateral_incline_;
             state->template get_mutable_abstract_state<double>(16) = lateral_bias_;
 
-            std::cout << "abstract update" << std::endl;
         }
 
         int update_automata(bool isNew, int step_num, double vcom_saggital, double com_lateral) const {
@@ -1578,3 +1630,4 @@ namespace qpControl {
 }
 }
 }
+
