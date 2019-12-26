@@ -78,23 +78,23 @@ drake_cc_library(
     ],
 )
 
-drake_cc_library(
-    name = "KCG_common2",
-    srcs = ["multibodyKCG.cpp"],
-    hdrs = [
-        "multibodyKCG.h",
-    ],
-    data = ["KneedCompassGait.urdf"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//attic/multibody:rigid_body_tree",
-        "//attic/multibody/parsers",
-        "//common:find_resource",
-        "//multibody/plant",
-        "//systems/primitives:linear_system",
-        "//systems/primitives:signal_logger",
-    ],
-)
+# drake_cc_library(
+#     name = "KCG_common2",
+#     srcs = ["multibodyKCG.cpp"],
+#     hdrs = [
+#         "multibodyKCG.h",
+#     ],
+#     data = ["KneedCompassGait.urdf"],
+#     visibility = ["//visibility:public"],
+#     deps = [
+#         "//attic/multibody:rigid_body_tree",
+#         "//attic/multibody/parsers",
+#         "//common:find_resource",
+#         "//multibody/plant",
+#         "//systems/primitives:linear_system",
+#         "//systems/primitives:signal_logger",
+#     ],
+# )
 
 drake_cc_library(
     name = "qpController2",
@@ -152,6 +152,47 @@ drake_cc_library(
         "//systems/framework:discrete_values",
         "//systems/framework:leaf_system",
         "//systems/framework:vector_system",
+    ],
+)
+
+drake_cc_library(
+    name = "phase_space_planner",
+    srcs = ["src/phase_space_planner.cc"],
+    hdrs = [
+        "include/phase_space_planner.h",
+        "include/utils.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common:default_scalars",
+        "//common:essential",
+    ],
+)
+
+drake_cc_library(
+    name = "kneed_compass_gait",
+    srcs = ["src/kneed_compass_gait.cc"],
+    hdrs = [
+        "include/kneed_compass_gait.h",
+    ],
+    data = ["models/KneedCompassGait.urdf"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common:default_scalars",
+        "//common:essential",
+        "//common:find_resource",
+        "//systems/framework",
+        "//systems/analysis",
+        "//multibody/plant",
+        "//multibody/parsing",
+        "//multibody/inverse_kinematics",
+        "//solvers:constraint",
+        "//solvers:gurobi_qp",
+        "//solvers:gurobi_solver",
+        "//solvers:mathematical_program",
+        "//solvers:mathematical_program_result",
+        "//solvers:osqp_solver",
+        "//solvers:solve",
     ],
 )
 
@@ -265,18 +306,34 @@ drake_cc_binary(
 )
 
 drake_cc_binary(
-    name = "doInverseKinematics",
-    srcs = ["doIK.cpp"],
+    name = "IK_simulate",
+    srcs = ["src/IK_simulate.cpp"],
+    data = ["models/KneedCompassGait.urdf"],
     deps = [
-        ":KCG_common2",
-        "//geometry:scene_graph",
-        "//lcm:drake_lcm",
-        "//multibody/inverse_kinematics",
-        "//multibody/parsing:parser",
-        "//multibody/plant",
-        "//systems/analysis:simulator",
+        "//lcm",
+        ":phase_space_planner",
+        ":kneed_compass_gait",
+        "//systems/primitives:signal_logger",
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/rigid_body_plant:drake_visualizer",
+        "//attic/multibody/parsers",
+        "//systems/analysis",
     ],
 )
+
+# drake_cc_binary(
+#     name = "doInverseKinematics",
+#     srcs = ["doIK.cpp"],
+#     deps = [
+#         ":KCG_common2",
+#         "//geometry:scene_graph",
+#         "//lcm:drake_lcm",
+#         "//multibody/inverse_kinematics",
+#         "//multibody/parsing:parser",
+#         "//multibody/plant",
+#         "//systems/analysis:simulator",
+#     ],
+# )
 
 install_data()
 

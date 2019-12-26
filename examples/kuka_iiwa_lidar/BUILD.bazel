@@ -14,7 +14,6 @@ drake_cc_library(
     srcs = ["srcs/AddTerrainToWorld.cpp"],
     hdrs = ["includes/AddTerrainToWorld.h"],
     data = [
-        "models/Enviornment",
         "models/Objects",
         "models/belt.urdf",
     ],

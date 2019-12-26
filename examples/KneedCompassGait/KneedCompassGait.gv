@@ -1,0 +1,38 @@
+digraph G {
+node [shape=box];
+"base_link" [label="base_link"];
+"hip_line" [label="hip_line"];
+"left_hip2roll" [label="left_hip2roll"];
+"left_upper_leg" [label="left_upper_leg"];
+"left_lower_leg" [label="left_lower_leg"];
+"left_lower_leg_mass" [label="left_lower_leg_mass"];
+"left_upper_leg_mass" [label="left_upper_leg_mass"];
+"right_hip2roll" [label="right_hip2roll"];
+"right_upper_leg" [label="right_upper_leg"];
+"right_lower_leg" [label="right_lower_leg"];
+"right_lower_leg_mass" [label="right_lower_leg_mass"];
+"right_upper_leg_mass" [label="right_upper_leg_mass"];
+node [shape=ellipse, color=blue, fontcolor=blue];
+"base_link" -> "base" [label="xyz: 0 0 0 \nrpy: 1.5708 -0 0"]
+"base" -> "hip_line"
+"hip_line" -> "leftHip_roll" [label="xyz: 0 0 0.1 \nrpy: -1.5708 0 0"]
+"leftHip_roll" -> "left_hip2roll"
+"left_hip2roll" -> "leftHip_pin" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"leftHip_pin" -> "left_upper_leg"
+"left_upper_leg" -> "left_knee_pin" [label="xyz: 0 0 -0.5 \nrpy: 0 -0 0"]
+"left_knee_pin" -> "left_lower_leg"
+"left_lower_leg" -> "left_lower_leg_mass_weld" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"left_lower_leg_mass_weld" -> "left_lower_leg_mass"
+"left_upper_leg" -> "left_upper_leg_mass_weld" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"left_upper_leg_mass_weld" -> "left_upper_leg_mass"
+"hip_line" -> "rightHip_roll" [label="xyz: 0 0 -0.1 \nrpy: -1.5708 0 0"]
+"rightHip_roll" -> "right_hip2roll"
+"right_hip2roll" -> "rightHip_pin" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"rightHip_pin" -> "right_upper_leg"
+"right_upper_leg" -> "right_knee_pin" [label="xyz: 0 0 -0.5 \nrpy: 0 -0 0"]
+"right_knee_pin" -> "right_lower_leg"
+"right_lower_leg" -> "right_lower_leg_mass_weld" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"right_lower_leg_mass_weld" -> "right_lower_leg_mass"
+"right_upper_leg" -> "right_upper_leg_mass_weld" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"right_upper_leg_mass_weld" -> "right_upper_leg_mass"
+}
